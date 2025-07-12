@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card shadow">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="bi bi-files"></i> ملفات معاملة #{{ transaction.id }}
+        </h5>
+        <a href="{{ url_for('review_transactions') }}" class="btn btn-light">
+            <i class="bi bi-arrow-left"></i> رجوع
+        </a>
+    </div>
+    
+    <div class="card-body">
+        {% if not files %}
+        <div class="alert alert-info text-center">
+            <i class="bi bi-info-circle"></i> لا توجد ملفات مرفقة لهذه المعاملة
+        </div>
+        {% else %}
+        <div class="row">
+            {% for file in files %}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>
+                            {% if file.file_type == 'image' %}
+                            <i class="bi bi-image text-primary"></i>
+                            {% elif file.file_type == 'pdf' %}
+                            <i class="bi bi-file-earmark-pdf text-danger"></i>
+                            {% elif file.file_type == 'word' %}
+                            <i class="bi bi-file-earmark-word text-primary"></i>
+                            {% else %}
+                            <i class="bi bi-file-earmark text-success"></i>
+                            {% endif %}
+                            {{ file.file_path.split('/')[-1] }}
+                        </span>
+                        {% if user == 'ابراهيم' or user == transaction.user %}
+                        <form method="POST" action="{{ url_for('delete_file', file_id=file.id) }}">
+                            <button type="submit" class="btn btn-sm btn-danger"
+                                onclick="return confirm('هل أنت متأكد من حذف هذا الملف؟')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="card-body text-center">
+                        {% if file.file_type == 'image' %}
+                        <img src="{{ url_for('static', filename=file.file_path) }}" 
+                             class="img-fluid mb-2" 
+                             alt="صورة معاملة"
+                             style="max-height: 200px;">
+                        {% else %}
+                        <div class="display-1 text-muted my-4">
+                            {% if file.file_type == 'pdf' %}
+                            <i class="bi bi-filetype-pdf text-danger" style="font-size: 3rem;"></i>
+                            {% elif file.file_type == 'word' %}
+                            <i class="bi bi-filetype-docx text-primary" style="font-size: 3rem;"></i>
+                            {% else %}
+                            <i class="bi bi-file-earmark" style="font-size: 3rem;"></i>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        
+                        <a href="{{ url_for('static', filename=file.file_path) }}" 
+                           target="_blank" class="btn btn-sm btn-success w-100">
+                            <i class="bi bi-download"></i> تحميل الملف
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

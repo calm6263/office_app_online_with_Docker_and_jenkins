@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-plus-circle"></i> إنشاء معاملة من طلب العميل</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('save_transaction_from_request', request_id=request.id) }}" enctype="multipart/form-data">
+                    <!-- بيانات العميل (تعبئة تلقائية) -->
+                    <div class="mb-3">
+                        <label for="client_name" class="form-label">اسم العميل</label>
+                        <input type="text" class="form-control" id="client_name" name="client_name" 
+                               value="{{ customer.name }}" required readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">هاتف العميل</label>
+                        <input type="text" class="form-control" id="phone" name="phone" 
+                               value="{{ customer.phone }}" required readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">البريد الإلكتروني</label>
+                        <input type="email" class="form-control" id="email" name="email" 
+                               value="{{ customer.email }}">
+                    </div>
+                    
+                    <!-- بيانات الخدمة -->
+                    <div class="mb-3">
+                        <label for="service_type" class="form-label">نوع الخدمة</label>
+                        <input type="text" class="form-control" id="service_type" 
+                               value="{{ request.service_type }}" readonly>
+                        <input type="hidden" name="service_type" value="{{ request.service_type }}">
+                    </div>
+                    
+                    <!-- تفاصيل الطلب -->
+                    <div class="mb-3">
+                        <label for="description" class="form-label">تفاصيل الطلب</label>
+                        <textarea class="form-control" id="description" name="description" readonly>{{ request.description }}</textarea>
+                    </div>
+                    
+                    <!-- باقي حقول إنشاء المعاملة -->
+                    <div class="mb-3">
+                        <label for="office_location" class="form-label">المكتب</label>
+                        <select class="form-select" id="office_location" name="office_location" required>
+                            <option value="المكتب الرئيسي">المكتب الرئيسي</option>
+                            <option value="مكتب الجامعة">مكتب الجامعة</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">العدد</label>
+                        <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="total" class="form-label">السعر الإجمالي (روبل)</label>
+                        <input type="number" class="form-control" id="total" name="total" step="0.01" min="0" required>
+                    </div>
+                    
+                    <!-- عرض الملفات المرفقة الأصلية -->
+                    {% if files %}
+                    <div class="mb-3">
+                        <label class="form-label">الملفات المرفقة بالطلب</label>
+                        <div class="border p-2">
+                            {% for file in files %}
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    {% if file.file_type == 'image' %}
+                                    <i class="bi bi-image text-primary"></i>
+                                    {% elif file.file_type == 'pdf' %}
+                                    <i class="bi bi-file-earmark-pdf text-danger"></i>
+                                    {% elif file.file_type == 'word' %}
+                                    <i class="bi bi-file-earmark-word text-primary"></i>
+                                    {% else %}
+                                    <i class="bi bi-file-earmark text-success"></i>
+                                    {% endif %}
+                                    {{ file.file_path.split('/')[-1] }}
+                                </div>
+                                <a href="{{ url_for('static', filename=file.file_path) }}" target="_blank" class="btn btn-sm btn-info">
+                                    <i class="bi bi-eye"></i> عرض
+                                </a>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <input type="hidden" name="original_files" value="1">
+                    </div>
+                    {% endif %}
+                    
+                    <!-- حقل رفع مستندات إضافية -->
+                    <div class="mb-3">
+                        <label class="form-label">إضافة ملفات جديدة (اختياري)</label>
+                        <input type="file" class="form-control" id="document_files" name="document_files" multiple>
+                        <div class="form-text">يمكنك رفع عدة ملفات (PDF, صور, Word)</div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="bi bi-save"></i> حفظ المعاملة
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

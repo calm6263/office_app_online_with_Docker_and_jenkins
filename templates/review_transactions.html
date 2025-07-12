@@ -1,0 +1,665 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="bi bi-list-check"></i> 
+            {% if filter_pending %}المعاملات غير المدفوعة{% else %}مراجعة المعاملات{% endif %}
+        </h5>
+        <div>
+            <a href="{{ url_for('main') }}" class="btn btn-light btn-sm">
+                <i class="bi bi-house"></i> الرئيسية
+            </a>
+            {% if user == 'ابراهيم' %}
+            <a href="{{ url_for('export_pdf') }}" class="btn btn-info btn-sm">
+                <i class="bi bi-file-earmark-pdf"></i> تصدير PDF
+            </a>
+            <a href="{{ url_for('export_excel') }}" class="btn btn-success btn-sm">
+                <i class="bi bi-file-earmark-excel"></i> تصدير Excel
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="card-body">
+        <!-- إشعارات مواعيد التسليم القريبة -->
+        {% if upcoming_deliveries %}
+        <div class="alert alert-warning">
+            <h6><i class="bi bi-exclamation-triangle"></i> معاملات مقتربة من موعد التسليم (خلال 3 أيام):</h6>
+            <ul class="mb-0">
+                {% for trans in upcoming_deliveries %}
+                <li>
+                    <a href="#{{ trans.id }}">معاملة #{{ trans.id }}</a>
+                    - العميل: {{ trans.client_name }} - التسليم: {{ trans.delivery_date }}
+                    (متتبقي: {{ (trans.delivery_date|to_date - today).days }} يوم)
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        
+        <!-- فلاتر البحث -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="bi bi-funnel"></i> تصفية النتائج</h6>
+            </div>
+            <div class="card-body">
+                <form method="GET">
+                    <input type="hidden" name="pending" value="{{ 'true' if filter_pending else 'false' }}">
+                    
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label for="client_name" class="form-label">👤 اسم العميل</label>
+                            <input type="text" class="form-control" id="client_name" name="client_name" 
+                                value="{{ request.args.get('client_name', '') }}">
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label for="phone" class="form-label">📱 رقم الهاتف</label>
+                            <input type="text" class="form-control" id="phone" name="phone" 
+                                value="{{ request.args.get('phone', '') }}">
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label for="payment_status" class="form-label">💳 حالة الدفع</label>
+                            <select class="form-select" id="payment_status" name="payment_status">
+                                <option value="الكل">الكل</option>
+                                <option value="مدفوعة" {% if request.args.get('payment_status') == 'مدفوعة' %}selected{% endif %}>مدفوعة</option>
+                                <option value="لاحقاً" {% if request.args.get('payment_status') == 'لاحقاً' %}selected{% endif %}>لاحقاً</option>
+                                <option value="تقسيط" {% if request.args.get('payment_status') == 'تقسيط' %}selected{% endif %}>تقسيط</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label for="date_filter" class="form-label">📅 التاريخ</label>
+                            <select class="form-select" id="date_filter" name="date_filter">
+                                <option value="">الكل</option>
+                                <option value="today" {% if request.args.get('date_filter') == 'today' %}selected{% endif %}>اليوم</option>
+                                <option value="yesterday" {% if request.args.get('date_filter') == 'yesterday' %}selected{% endif %}>أمس</option>
+                                <option value="this_week" {% if request.args.get('date_filter') == 'this_week' %}selected{% endif %}>الأسبوع الحالي</option>
+                                <option value="this_month" {% if request.args.get('date_filter') == 'this_month' %}selected{% endif %}>الشهر الحالي</option>
+                                <option value="last_month" {% if request.args.get('date_filter') == 'last_month' %}selected{% endif %}>الشهر الماضي</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label for="start_date" class="form-label">من تاريخ</label>
+                            <input type="date" class="form-control" id="start_date" name="start_date" 
+                                value="{{ request.args.get('start_date', '') }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="end_date" class="form-label">إلى تاريخ</label>
+                            <input type="date" class="form-control" id="end_date" name="end_date" 
+                                value="{{ request.args.get('end_date', '') }}">
+                        </div>
+                        
+                        <!-- فلتر اللغة المصدر -->
+                        <div class="col-md-3">
+                            <label for="source_language" class="form-label">🌐 اللغة المصدر</label>
+                            <input type="text" class="form-control" id="source_language" 
+                                   name="source_language" value="{{ request.args.get('source_language', '') }}"
+                                   placeholder="أدخل اللغة المصدر">
+                        </div>
+                        
+                        <!-- فلتر اللغة الهدف -->
+                        <div class="col-md-3">
+                            <label for="target_language" class="form-label">🌐 اللغة الهدف</label>
+                            <input type="text" class="form-control" id="target_language" 
+                                   name="target_language" value="{{ request.args.get('target_language', '') }}"
+                                   placeholder="أدخل اللغة الهدف">
+                        </div>
+                        
+                        <!-- فلتر الخدمات -->
+                        <div class="col-md-3">
+                            <label for="service_filter" class="form-label">🛠️ الخدمة</label>
+                            <select class="form-select" id="service_filter" name="service_filter">
+                                <option value="الكل">الكل</option>
+                                {% for service in services %}
+                                <option value="{{ service.name }}" {% if request.args.get('service_filter') == service.name %}selected{% endif %}>{{ service.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <!-- فلتر الوقت -->
+                        <div class="col-md-3">
+                            <label for="start_time" class="form-label">⏰ من وقت</label>
+                            <input type="time" class="form-control" id="start_time" name="start_time" 
+                                value="{{ request.args.get('start_time', '') }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="end_time" class="form-label">⏰ إلى وقت</label>
+                            <input type="time" class="form-control" id="end_time" name="end_time" 
+                                value="{{ request.args.get('end_time', '') }}">
+                        </div>
+                        
+                        <!-- فلتر طريقة الدفع الجديد -->
+                        <div class="col-md-3">
+                            <label for="payment_method" class="form-label">💸 طريقة الدفع</label>
+                            <select class="form-select" id="payment_method" name="payment_method">
+                                <option value="الكل">الكل</option>
+                                <option value="كاش" {% if request.args.get('payment_method') == 'كاش' %}selected{% endif %}>كاش</option>
+                                <option value="أونلاين" {% if request.args.get('payment_method') == 'أونلاين' %}selected{% endif %}>أونلاين</option>
+                            </select>
+                        </div>
+                        
+                        <!-- فلتر حالة المعاملة الجديد -->
+                        <div class="col-md-3">
+                            <label for="status_filter" class="form-label">📊 حالة المعاملة</label>
+                            <select class="form-select" id="status_filter" name="status_filter">
+                                <option value="">الكل</option>
+                                <option value="قيد التنفيذ" {% if request.args.get('status_filter') == 'قيد التنفيذ' %}selected{% endif %}>قيد التنفيذ</option>
+                                <option value="تم الإنجاز" {% if request.args.get('status_filter') == 'تم الإنجاز' %}selected{% endif %}>تم الإنجاز</option>
+                            </select>
+                        </div>
+                        
+                        <!-- فلتر تجزئة التاريخ الجديد -->
+                        <div class="col-md-3">
+                            <label for="date_partition" class="form-label">🗓️ تجزئة التاريخ</label>
+                            <select class="form-select" id="date_partition" name="date_partition">
+                                <option value="">بدون تجزئة</option>
+                                <option value="daily" {% if request.args.get('date_partition') == 'daily' %}selected{% endif %}>يومي</option>
+                                <option value="weekly" {% if request.args.get('date_partition') == 'weekly' %}selected{% endif %}>أسبوعي</option>
+                                <option value="monthly" {% if request.args.get('date_partition') == 'monthly' %}selected{% endif %}>شهري</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="bi bi-search"></i> تطبيق الفلاتر
+                            </button>
+                            <a href="{{ url_for('review_transactions', pending=filter_pending) }}" 
+                                class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-repeat"></i> إعادة تعيين
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- إحصائيات نتائج الفلتر - تظهر فقط لإبراهيم -->
+        {% if user == 'ابراهيم' %}
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-white bg-primary">
+                    <div class="card-body text-center">
+                        <h6>عدد المعاملات المصفاة</h6>
+                        <h4>{{ filtered_stats.count }}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-secondary">
+                    <div class="card-body text-center">
+                        <h6>إجمالي المعاملات</h6>
+                        <h4>{{ filtered_stats.total_sum | round(2) }} روبل</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-success">
+                    <div class="card-body text-center">
+                        <h6>إجمالي المدفوع</h6>
+                        <h4>{{ filtered_stats.paid_sum | round(2) }} روبل</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-danger">
+                    <div class="card-body text-center">
+                        <h6>إجمالي المتبقي</h6>
+                        <h4>{{ filtered_stats.remaining_sum | round(2) }} روبل</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- الإحصائيات المحسنة - تظهر فقط لإبراهيم -->
+        {% if user == 'ابراهيم' and not filter_pending %}
+        <div class="row mb-4">
+            <!-- بطاقة الدخل اليومي الإجمالي (الجديدة) -->
+            <div class="col-md-2">
+                <div class="card text-white bg-secondary">
+                    <div class="card-body text-center">
+                        <h6>💰 الدخل اليومي (إجمالي)</h6>
+                        <h4>{{ stats.daily_gross_income | round(2) }} روبل</h4>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-2">
+                <div class="card text-white bg-primary">
+                    <div class="card-body text-center">
+                        <h6>💰 المدخول اليومي (صافي)</h6>
+                        <h4>{{ stats.daily_income | round(2) }} روبل</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card text-white bg-info">
+                    <div class="card-body text-center">
+                        <h6>💰 الدخل الشهري (الإجمالي)</h6>
+                        <h4>{{ stats.monthly_gross_income | round(2) }} روبل</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card text-white bg-danger">
+                    <div class="card-body text-center">
+                        <h6>💸 المصاريف اليومية</h6>
+                        <h4>{{ daily_expenses | round(2) }} روبل</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card text-white bg-warning">
+                    <div class="card-body text-center">
+                        <h6>📊 المعاملات اليومية</h6>
+                        <h4>{{ stats.daily_count }}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card text-white bg-success">
+                    <div class="card-body text-center">
+                        <h6>✅ صافي الدخل الشهري</h6>
+                        <h4>{{ stats.monthly_income | round(2) }} روبل</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card text-white bg-secondary">
+                    <div class="card-body text-center">
+                        <h6>📝 الديون المستحقة</h6>
+                        <h4>{{ pending_total | round(2) }} روبل</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- قسم المصاريف - تظهر فقط لإبراهيم -->
+        {% if user == 'ابراهيم' %}
+        <div class="card mb-4">
+            <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-cash-coin"></i> مصاريف المكتب نتاريوس</h5>
+                <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#expenseModal">
+                    <i class="bi bi-plus-circle"></i> إضافة مصروف
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>المبلغ (روبل)</th>
+                                <th>الوصف</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for expense in expenses %}
+                            <tr>
+                                <td>{{ expense.date }}</td>
+                                <td>{{ expense.amount | round(2) }}</td>
+                                <td>{{ expense.description }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-warning edit-expense-btn" 
+                                        data-expense-id="{{ expense.id }}"
+                                        title="تعديل المصروف">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <form class="d-inline" method="POST" action="{{ url_for('delete_expense', expense_id=expense.id) }}">
+                                        <button type="submit" class="btn btn-sm btn-danger"
+                                            onclick="return confirm('هل أنت متأكد من حذف هذا المصروف؟')"
+                                            title="حذف المصروف">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">لا توجد مصاريف مسجلة</td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="table-warning">
+                                <th colspan="2">الإجمالي</th>
+                                <td colspan="2">{{ total_expenses | round(2) }} روبل</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- جدول المعاملات المحسن -->
+        <div class="table-responsive">
+            <table class="table table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>🔢 رقم</th>
+                        <th>📅 التاريخ</th>
+                        <th>👤 العميل</th>
+                        <th>🛠️ الخدمات</th>
+                        <th>💰 الإجمالي</th>
+                        <th>💳 حالة الدفع</th>
+                        <th>📊 الحالة</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trans in transactions %}
+                    {% set services_list = trans.services | from_json %}
+                    
+                    <!-- تحديد لون الصف حسب حالة المعاملة -->
+                    {% if trans.status == 'تم الإنجاز' %}
+                        {% set row_class = 'table-success' %}  <!-- أخضر غامق للمنجزة -->
+                    {% elif trans.payment_status == 'مدفوعة' %}
+                        {% set row_class = 'table-light-green' %}  <!-- أخضر فاتح للمدفوعة -->
+                    {% elif trans.payment_status == 'لاحقاً' %}
+                        {% set row_class = 'table-warning' %}  <!-- برتقالي/أصفر لغير المدفوعة -->
+                    {% elif trans.payment_status == 'تقسيط' %}
+                        {% set row_class = 'table-info' %}  <!-- أزرق للتقسيط -->
+                    {% else %}
+                        {% set row_class = 'table-light' %}
+                    {% endif %}
+                    
+                    <tr class="{{ row_class }} {% if trans.is_edit %}table-info{% endif %}">
+                        <td>
+                            {{ trans.id }}
+                            {% if trans.is_edit %}
+                            <span class="badge bg-info" title="معاملة معدلة">✏️</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ trans.date }}<br><small>{{ trans.time }}</small>
+                        </td>
+                        <td>
+                            <strong>{{ trans.client_name }}</strong><br>
+                            <small>{{ trans.phone }}</small>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary mb-2" type="button" 
+                                    data-bs-toggle="collapse" 
+                                    data-bs-target="#servicesCollapse{{ trans.id }}">
+                                <i class="bi bi-list"></i> عرض الخدمات ({{ services_list|length }})
+                            </button>
+                            
+                            <div class="collapse" id="servicesCollapse{{ trans.id }}">
+                                <ul class="list-group">
+                                    {% for service in services_list %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            {{ service.name }} ({{ service.price }} روبل)
+                                            <span class="badge {% if service.status == 'تم الإنجاز' %}bg-success{% else %}bg-warning{% endif %}">
+                                                {{ service.status }}
+                                            </span>
+                                        </div>
+                                        {% if service.status != 'تم الإنجاز' %}
+                                        <form method="POST" action="{{ url_for('complete_service', transaction_id=trans.id, service_name=service.name) }}">
+                                            <button type="submit" class="btn btn-sm btn-success">
+                                                <i class="bi bi-check-circle"></i> إنجاز
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </td>
+                        <td>{{ trans.total | round(2) }} روبل</td>
+                        <td>
+                            {{ trans.payment_status }}
+                            <small class="text-muted d-block">
+                                ({{ russian_translations.get(trans.payment_status, trans.payment_status) }})
+                            </small>
+                            {% if trans.payment_status == 'تقسيط' %}
+                            <br><small>مدفوع: {{ trans.paid_amount | round(2) }}</small>
+                            <br><small>متبقي: {{ trans.remaining_amount | round(2) }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge {% if trans.status == 'تم الإنجاز' %}bg-success{% else %}bg-warning{% endif %}">
+                                {{ trans.status }}
+                                <small class="d-block">
+                                    ({{ russian_translations.get(trans.status, trans.status) }})
+                                </small>
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group-vertical">
+                                <a href="{{ url_for('edit_transaction', transaction_id=trans.id) }}" 
+                                    class="btn btn-sm btn-warning mb-1" title="تعديل">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                
+                                <a href="{{ url_for('transaction_files', transaction_id=trans.id) }}" 
+                                    class="btn btn-sm btn-info mb-1" title="عرض الملفات">
+                                    <i class="bi bi-files"></i>
+                                </a>
+                                
+                                <a href="{{ url_for('print_transaction', transaction_id=trans.id) }}" 
+                                    class="btn btn-sm btn-primary mb-1" title="طباعة" target="_blank">
+                                    <i class="bi bi-printer"></i>
+                                </a>
+                                
+                                {% if trans.payment_status == 'لاحقاً' or trans.payment_status == 'تقسيط' %}
+                                <form method="POST" action="{{ url_for('update_to_paid', transaction_id=trans.id) }}">
+                                    <button type="submit" class="btn btn-sm btn-success mb-1" title="تحويل إلى مدفوعة">
+                                        <i class="bi bi-currency-exchange"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                                
+                                <!-- زر إنجاز جميع الخدمات -->
+                                {% if trans.status != 'تم الإنجاز' %}
+                                <form method="POST" action="{{ url_for('complete_transaction', transaction_id=trans.id) }}">
+                                    <button type="submit" class="btn btn-sm btn-success mb-1" title="إنجاز جميع الخدمات">
+                                        <i class="bi bi-check-all"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                                
+                                {% if user == 'ابراهيم' %}
+                                <form method="POST" action="{{ url_for('delete_transaction', transaction_id=trans.id) }}">
+                                    <button type="submit" class="btn btn-sm btn-danger" 
+                                        onclick="return confirm('هل أنت متأكد من حذف هذه المعاملة؟')"
+                                        title="حذف المعاملة">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    
+                    <!-- صف التفاصيل الإضافية -->
+                    <tr>
+                        <td colspan="8" class="p-0">
+                            <div class="collapse" id="detailsCollapse{{ trans.id }}">
+                                <div class="card card-body bg-light">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <strong>👤 المستخدم:</strong> {{ trans.user }}<br>
+                                            <strong>📍 المكان:</strong> {{ trans.office_location }}<br>
+                                            <strong>📱 رقم المستلم:</strong> {{ trans.receiver_number }}
+                                        </div>
+                                        <div class="col-md-4">
+                                            <strong>🌐 اللغة المصدر:</strong> {{ trans.source_language }}<br>
+                                            <strong>🌐 اللغة الهدف:</strong> {{ trans.target_language }}<br>
+                                            <strong>🏛️ الجامعة:</strong> {{ trans.university_name }}
+                                        </div>
+                                        <div class="col-md-4">
+                                            <strong>📅 الاستلام:</strong> {{ trans.receive_date }}<br>
+                                            <strong>📅 التسليم:</strong> {{ trans.delivery_date }}<br>
+                                            <strong>🔢 العدد:</strong> {{ trans.quantity }}
+                                        </div>
+                                    </div>
+                                    <!-- إضافة قسم الملاحظات هنا -->
+                                    {% if trans.notes %}
+                                    <div class="row mt-3">
+                                        <div class="col-md-12">
+                                            <strong>📝 الملاحظات:</strong> {{ trans.notes }}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <button class="btn btn-sm btn-link w-100 text-start" 
+                                    type="button" 
+                                    data-bs-toggle="collapse" 
+                                    data-bs-target="#detailsCollapse{{ trans.id }}">
+                                <i class="bi bi-chevron-down"></i> التفاصيل الكاملة
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            لا توجد معاملات لعرضها
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- ترقيم الصفحات -->
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if pagination.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('review_transactions', page=pagination.prev_num, **request.args) }}">السابق</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">السابق</span>
+                </li>
+                {% endif %}
+                
+                {% for page_num in pagination.iter_pages() %}
+                    <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('review_transactions', page=page_num, **request.args) }}">{{ page_num }}</a>
+                    </li>
+                {% endfor %}
+                
+                {% if pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('review_transactions', page=pagination.next_num, **request.args) }}">التالي</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">التالي</span>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<!-- نافذة إضافة/تعديل مصروف -->
+<div class="modal fade" id="expenseModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="expenseModalTitle">إضافة مصروف جديد</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="expenseForm">
+                <input type="hidden" id="expenseId" name="expense_id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="expenseDate" class="form-label">التاريخ</label>
+                        <input type="date" class="form-control" id="expenseDate" name="date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="expenseAmount" class="form-label">المبلغ (روبل)</label>
+                        <input type="number" class="form-control" id="expenseAmount" name="amount" min="0" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="expenseDescription" class="form-label">الوصف</label>
+                        <select class="form-select" id="expenseDescription" name="description" required>
+                            <option value="">اختر نوع المصروف</option>
+                            <option value="تكاليف المكتب">تكاليف المكتب</option>
+                            <option value="النيوتاريوس">النيوتاريوس</option>
+                            <option value="مصاريف أخرى">مصاريف أخرى</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">حفظ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// فتح نافذة إضافة مصروف
+document.querySelector('[data-bs-target="#expenseModal"]').addEventListener('click', function() {
+    document.getElementById('expenseModalTitle').textContent = 'إضافة مصروف جديد';
+    document.getElementById('expenseForm').reset();
+    document.getElementById('expenseId').value = '';
+    // تعيين التاريخ الحالي كافتراضي
+    document.getElementById('expenseDate').valueAsDate = new Date();
+});
+
+// فتح نافذة تعديل مصروف
+document.querySelectorAll('.edit-expense-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+        const expenseId = this.dataset.expenseId;
+        
+        try {
+            const response = await fetch(`/get_expense/${expenseId}`);
+            const result = await response.json();
+            
+            if (result.success) {
+                const expense = result.expense;
+                document.getElementById('expenseModalTitle').textContent = 'تعديل المصروف';
+                document.getElementById('expenseId').value = expense.id;
+                document.getElementById('expenseDate').value = expense.date;
+                document.getElementById('expenseAmount').value = expense.amount;
+                document.getElementById('expenseDescription').value = expense.description;
+                
+                const modal = new bootstrap.Modal(document.getElementById('expenseModal'));
+                modal.show();
+            } else {
+                alert('لم يتم العثور على المصروف');
+            }
+        } catch (error) {
+            alert('حدث خطأ أثناء جلب بيانات المصروف');
+        }
+    });
+});
+
+// إرسال نموذج المصروف (إضافة/تعديل)
+document.getElementById('expenseForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    try {
+        const response = await fetch("{{ url_for('save_expense') }}", {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            location.reload();
+        } else {
+            alert(result.message || 'حدث خطأ أثناء حفظ المصروف');
+        }
+    } catch (error) {
+        alert('حدث خطأ في الاتصال بالخادم');
+    }
+});
+</script>
+{% endblock %}

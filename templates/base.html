@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مكتب خدمات ترجمة وتصديق</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            left: -5px; /* تعديل لليمن */
+            font-size: 0.7rem;
+        }
+        
+        .notification-dropdown {
+            left: 0 !important; /* محاذاة لليمين */
+            right: auto !important;
+        }
+        
+        /* تنسيق زر الإشعارات */
+        .notification-icon {
+            position: relative;
+            margin-left: 15px; /* مسافة بين الأيقونة والعناصر الأخرى */
+        }
+        
+        /* تذييل الصفحة */
+        .footer-content {
+            text-align: center;
+            padding: 15px 0;
+        }
+        
+        /* تحسين الشريط العلوي */
+        .navbar-nav {
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <!-- شريط التنقل المعدل -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('main') }}">
+                <i class="bi bi-building"></i> مكتب خدمات ترجمة وتصديق
+            </a>
+            
+            <div class="d-flex align-items-center">
+                {% if 'user' in session %}
+                <!-- رابط طلبات العملاء لكل الموظفين -->
+                <a href="{{ url_for('employee_requests') }}" class="btn btn-outline-light me-2">
+                    <i class="bi bi-people"></i> طلبات العملاء
+                </a>
+                
+                <!-- إخفاء أيقونة المصاريف عن غير إبراهيم -->
+                {% if session['user'] == 'ابراهيم' %}
+                <a href="{{ url_for('review_transactions') }}" class="btn btn-outline-light me-2">
+                    <i class="bi bi-cash-coin"></i> المصاريف
+                </a>
+                {% endif %}
+                
+                <span class="text-light me-3">مرحباً، {{ session['user'] }}</span>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline-light me-3">
+                    <i class="bi bi-box-arrow-left"></i> خروج
+                </a>
+                
+                <!-- زر الإشعارات (في أقصى اليمين) -->
+                <div class="dropdown notification-icon">
+                    <a href="#" class="text-light position-relative" 
+                       id="notificationsDropdown" 
+                       data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-bell fs-4"></i>
+                        {% if unread_count and unread_count > 0 %}
+                        <span class="position-absolute badge rounded-pill bg-danger notification-badge">
+                            {{ unread_count }}
+                        </span>
+                        {% endif %}
+                    </a>
+                    <!-- قائمة الإشعارات مع محاذاة لليمين -->
+                    <ul class="dropdown-menu dropdown-menu-end notification-dropdown" 
+                        aria-labelledby="notificationsDropdown">
+                        <li><h6 class="dropdown-header">الإشعارات الأخيرة</h6></li>
+                        {% for notification in notifications %}
+                        <li>
+                            <a class="dropdown-item {% if not notification.is_read %}fw-bold{% endif %}" 
+                               href="{{ notification.link or '#' }}">
+                                <div>{{ notification.message }}</div>
+                                <small class="text-muted">{{ notification.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
+                            </a>
+                        </li>
+                        {% else %}
+                        <li><a class="dropdown-item text-muted" href="#">لا توجد إشعارات جديدة</a></li>
+                        {% endfor %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item text-center text-primary" 
+                               href="{{ url_for('notifications') }}">
+                                <i class="bi bi-list"></i> عرض جميع الإشعارات
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- المحتوى الرئيسي -->
+    <div class="container my-4">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- التذييل المعدل -->
+    <footer class="bg-dark text-light py-3 mt-4">
+        <div class="container">
+            <div class="row">
+                <div class="col-12 footer-content">
+                    <p class="mb-1">© 2025 مكتب خدمات ترجمة وتصديق | الإصدار 2.0</p>
+                    <p class="mb-0">صمم بواسطة حسن أسعد 89150735670</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

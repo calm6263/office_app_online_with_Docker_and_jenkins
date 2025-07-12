@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>طباعة المعاملة #{{ transaction.id }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #fff;
+        }
+        .print-container {
+            width: 210mm;
+            margin: 0 auto;
+            padding: 15mm;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .footer {
+            border-top: 1px dashed #ccc;
+            padding-top: 10px;
+            margin-top: 30px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+        }
+        .signature {
+            margin-top: 50px;
+            border-top: 1px solid #000;
+            width: 50%;
+            padding-top: 10px;
+        }
+        @media print {
+            body {
+                padding: 0;
+                margin: 0;
+            }
+            .no-print {
+                display: none;
+            }
+            .print-container {
+                box-shadow: none;
+                padding: 0;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-container">
+        <div class="text-center no-print mb-3">
+            <button class="btn btn-primary" onclick="window.print()">
+                <i class="bi bi-printer"></i> طباعة
+            </button>
+            <button class="btn btn-secondary" onclick="window.close()">
+                <i class="bi bi-x-circle"></i> إغلاق
+            </button>
+        </div>
+        
+        <div class="header text-center">
+            <h2>مكتب خدمات ترجمة وتصديق</h2>
+            <h4>معاملة رقم: #{{ transaction.id }}</h4>
+            <p>تاريخ المعاملة: {{ transaction.date }} ⏰ {{ transaction.time }}</p>
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h5>معلومات العميل</h5>
+                <table class="table table-sm">
+                    <tr>
+                        <th>👤 الاسم:</th>
+                        <td>{{ transaction.client_name }}</td>
+                    </tr>
+                    <tr>
+                        <th>📱 الهاتف:</th>
+                        <td>{{ transaction.phone or '--' }}</td>
+                    </tr>
+                    <tr>
+                        <th>📍 المكان:</th>
+                        <td>{{ transaction.office_location }}</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h5>تفاصيل المعاملة</h5>
+                <table class="table table-sm">
+                    <tr>
+                        <th>👤 المستخدم:</th>
+                        <td>{{ transaction.user }}</td>
+                    </tr>
+                    <tr>
+                        <th>📅 تاريخ الاستلام:</th>
+                        <td>{{ transaction.receive_date or '--' }}</td>
+                    </tr>
+                    <tr>
+                        <th>📅 تاريخ التسليم:</th>
+                        <td>{{ transaction.delivery_date or '--' }}</td>
+                    </tr>
+                    <tr>
+                        <th>🌐 اللغة المصدر:</th>
+                        <td>{{ transaction.source_language }}</td>
+                    </tr>
+                    <tr>
+                        <th>🌐 اللغة الهدف:</th>
+                        <td>{{ transaction.target_language }}</td>
+                    </tr>
+                    <tr>
+                        <th>📊 الحالة:</th>
+                        <td>{{ transaction.status }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        
+        <div class="mb-4">
+            <h5>🛠️ الخدمات المقدمة</h5>
+            <ul>
+                {% for service in services_list %}
+                <li>{{ service.name }} - السعر: {{ service.price }} روبل</li>
+                {% endfor %}
+            </ul>
+            {% if transaction.university_name %}
+            <p><strong>🏛️ اسم الجامعة:</strong> {{ transaction.university_name }}</p>
+            {% endif %}
+            <p><strong>🔢 العدد:</strong> {{ transaction.quantity }}</p>
+        </div>
+        
+        <div class="mb-4">
+            <h5>💰 التفاصيل المالية</h5>
+            <table class="table table-bordered">
+                <tr>
+                    <th>الإجمالي (روبل)</th>
+                    <th>حالة الدفع</th>
+                    <th>طريقة الدفع</th>
+                </tr>
+                <tr>
+                    <td>{{ transaction.total | round(2) }}</td>
+                    <td>{{ transaction.payment_status }}</td>
+                    <td>{{ transaction.payment_method }}</td>
+                </tr>
+                {% if transaction.payment_status == 'تقسيط' %}
+                <tr>
+                    <th>المدفوع</th>
+                    <td>{{ transaction.paid_amount | round(2) }}</td>
+                    <th>المتبقي</th>
+                    <td>{{ transaction.remaining_amount | round(2) }}</td>
+                </tr>
+                {% endif %}
+            </table>
+        </div>
+        
+        {% if transaction.notes %}
+        <div class="mb-4">
+            <h5>📝 ملاحظات</h5>
+            <p>{{ transaction.notes }}</p>
+        </div>
+        {% endif %}
+        
+        <div class="signature">
+            <p>توقيع العميل: _________________</p>
+            <p>توقيع الموظف: _________________</p>
+        </div>
+        
+        <div class="footer">
+            <p>طباعة بتاريخ: {{ datetime.now().strftime('%Y-%m-%d %H:%M') }}</p>
+            <p>شكراً لتعاملكم مع مكتب  глагол</p>
+        </div>
+    </div>
+
+    <script>
+        window.onload = function() {
+            window.print();
+        }
+    </script>
+</body>
+</html>

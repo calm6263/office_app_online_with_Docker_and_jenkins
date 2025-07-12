@@ -1,0 +1,22 @@
+office_app_online/
+├── app.py
+├── models.py
+├── requirements.txt
+├── templates/
+│   ├── base.html
+│   ├── login.html
+│   ├── main.html
+│   ├── add_transaction.html
+│   ├── review_transactions.html
+│   ├── manage_users.html
+│   ├── transaction_images.html
+│   └── pdf_report.html
+├── static/
+│   ├── css/
+│   │   └── style.css
+│   ├── js/
+│   │   └── script.js
+│   └── img/
+│       └── logo.png
+└── instance/
+    └── office_services.db

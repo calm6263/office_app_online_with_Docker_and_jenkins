@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card shadow">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-people"></i> إدارة المستخدمين</h5>
+        <a href="{{ url_for('main') }}" class="btn btn-light">
+            <i class="bi bi-arrow-left"></i> رجوع
+        </a>
+    </div>
+    
+    <div class="card-body">
+        <div class="mb-4">
+            <h6 class="mb-3"><i class="bi bi-plus-circle"></i> إضافة مستخدم جديد</h6>
+            <form id="addUserForm" class="row g-3">
+                <div class="col-md-3">
+                    <input type="text" class="form-control" id="newUsername" placeholder="اسم المستخدم" required>
+                </div>
+                <div class="col-md-3">
+                    <input type="password" class="form-control" id="newPassword" placeholder="كلمة المرور" required>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" id="newRole">
+                        <option value="user">مستخدم عادي</option>
+                        <option value="manager">مدير</option>
+                        <option value="admin">مدير عام</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-person-plus"></i> إضافة
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>👤 اسم المستخدم</th>
+                        <th>🔑 دور المستخدم</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.username }}</td>
+                        <td>
+                            {% if user.role == 'admin' %}
+                            <span class="badge bg-danger">مدير عام</span>
+                            {% elif user.role == 'manager' %}
+                            <span class="badge bg-warning">مدير</span>
+                            {% else %}
+                            <span class="badge bg-primary">مستخدم</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-warning update-password-btn" 
+                                    data-user-id="{{ user.id }}"
+                                    data-user-role="{{ user.role }}"
+                                    title="تعديل كلمة المرور">
+                                    <i class="bi bi-key"></i>
+                                </button>
+                                
+                                {% if user.username != 'ابراهيم' %}
+                                <button class="btn btn-sm btn-danger delete-user-btn" 
+                                    data-user-id="{{ user.id }}"
+                                    title="حذف المستخدم">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- نموذج تحديث كلمة المرور -->
+<div class="modal fade" id="updatePasswordModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">تحديث بيانات المستخدم</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="updatePasswordForm">
+                <div class="modal-body">
+                    <input type="hidden" id="updateUserId">
+                    <div class="mb-3">
+                        <label for="newPasswordInput" class="form-label">كلمة المرور الجديدة</label>
+                        <input type="password" class="form-control" id="newPasswordInput" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="updateUserRole" class="form-label">دور المستخدم</label>
+                        <select class="form-select" id="updateUserRole">
+                            <option value="user">مستخدم عادي</option>
+                            <option value="manager">مدير</option>
+                            <option value="admin">مدير عام</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">حفظ التغييرات</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// إضافة مستخدم جديد
+document.getElementById('addUserForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const username = document.getElementById('newUsername').value;
+    const password = document.getElementById('newPassword').value;
+    const role = document.getElementById('newRole').value;
+    
+    try {
+        const response = await fetch("{{ url_for('add_user') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({
+                'username': username,
+                'password': password,
+                'role': role
+            })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert(result.message);
+            location.reload();
+        } else {
+            alert(result.message);
+        }
+    } catch (error) {
+        alert('حدث خطأ أثناء الإضافة');
+    }
+});
+
+// تحديث كلمة المرور
+document.querySelectorAll('.update-password-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const userId = this.dataset.userId;
+        const userRole = this.dataset.userRole;
+        
+        document.getElementById('updateUserId').value = userId;
+        document.getElementById('updateUserRole').value = userRole;
+        
+        const modal = new bootstrap.Modal(document.getElementById('updatePasswordModal'));
+        modal.show();
+    });
+});
+
+document.getElementById('updatePasswordForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const userId = document.getElementById('updateUserId').value;
+    const newPassword = document.getElementById('newPasswordInput').value;
+    const newRole = document.getElementById('updateUserRole').value;
+    
+    try {
+        const response = await fetch("{{ url_for('update_user', user_id=0) }}".replace('0', userId), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({
+                'password': newPassword,
+                'role': newRole
+            })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert(result.message);
+            location.reload();
+        } else {
+            alert(result.message);
+        }
+    } catch (error) {
+        alert('حدث خطأ أثناء التحديث');
+    }
+});
+
+// حذف المستخدمين
+document.querySelectorAll('.delete-user-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+        const userId = this.dataset.userId;
+        
+        if (confirm('هل أنت متأكد من حذف هذا المستخدم؟')) {
+            try {
+                const response = await fetch(`/delete_user/${userId}`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    alert(result.message);
+                    location.reload();
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                alert('حدث خطأ أثناء الحذف');
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

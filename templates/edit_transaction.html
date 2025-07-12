@@ -1,0 +1,448 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> 
+    أنت تقوم بتعديل المعاملة رقم #{{ transaction.id }}. سيتم حذف المعاملة القديمة واستبدالها بالمعاملة الجديدة.
+</div>
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card shadow mb-4">
+            <div class="card-header bg-warning text-white">
+                <h5 class="mb-0"><i class="bi bi-pencil"></i> تعديل المعاملة #{{ transaction.id }}</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('edit_transaction', transaction_id=transaction.id) }}" enctype="multipart/form-data" id="editForm">
+                    <!-- حقول التاريخ والوقت -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="date" class="form-label">📅 تاريخ المعاملة</label>
+                            <input type="date" class="form-control" id="date" name="date" value="{{ transaction.date }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="time" class="form-label">⏰ وقت المعاملة</label>
+                            <input type="time" class="form-control" id="time" name="time" value="{{ transaction.time }}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="client_name" class="form-label">👤 اسم العميل</label>
+                            <input type="text" class="form-control" id="client_name" name="client_name" value="{{ transaction.client_name }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="phone" class="form-label">📱 رقم الهاتف</label>
+                            <input type="text" class="form-control" id="phone" name="phone" value="{{ transaction.phone }}">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="office_location" class="form-label">📍 مكان الخدمة</label>
+                            <select class="form-select" id="office_location" name="office_location">
+                                <option value="داخل المكتب" {% if transaction.office_location == 'داخل المكتب' %}selected{% endif %}>داخل المكتب</option>
+                                <option value="خارج المكتب" {% if transaction.office_location == 'خارج المكتب' %}selected{% endif %}>خارج المكتب</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">🛠️ الخدمات</label>
+                            <div class="border p-2" style="max-height: 200px; overflow-y: auto;" id="servicesContainer">
+                                {% for service in services %}
+                                <div class="form-check mb-2 service-item">
+                                    <input class="form-check-input service-checkbox" type="checkbox" 
+                                        name="services[]" value="{{ service.name }}" 
+                                        id="service_{{ loop.index }}"
+                                        {% for sel in selected_services %}
+                                            {% if sel.name == service.name %}checked{% endif %}
+                                        {% endfor %}>
+                                    <label class="form-check-label" for="service_{{ loop.index }}">{{ service.name }}</label>
+                                    <input type="number" class="form-control form-control-sm d-inline-block w-50 ms-2 price-input" 
+                                        name="price_{{ service.name }}" min="0" step="0.01" placeholder="أدخل السعر"
+                                        value="{% if selected_services_dict.get(service.name) %}{{ selected_services_dict[service.name].price }}{% endif %}"
+                                        {% if not selected_services_dict.get(service.name) %}disabled{% endif %}>
+                                    
+                                    <!-- حقل مخفي لحالة الخدمة -->
+                                    <input type="hidden" name="status_{{ service.name }}" 
+                                        value="{% if selected_services_dict.get(service.name) %}{{ selected_services_dict[service.name].status }}{% else %}قيد التنفيذ{% endif %}"
+                                        {% if not selected_services_dict.get(service.name) %}disabled{% endif %}>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- حقول اللغة المصدر واللغة الهدف -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="source_language" class="form-label">🌐 اللغة المصدر</label>
+                            <input type="text" class="form-control" id="source_language" 
+                                   name="source_language" value="{{ transaction.source_language }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="target_language" class="form-label">🌐 اللغة الهدف</label>
+                            <input type="text" class="form-control" id="target_language" 
+                                   name="target_language" value="{{ transaction.target_language }}">
+                        </div>
+                    </div>
+                    
+                    <!-- حقل حالة المعاملة الجديد -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="status" class="form-label">📊 حالة المعاملة</label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="قيد التنفيذ" {% if transaction.status == 'قيد التنفيذ' %}selected{% endif %}>قيد التنفيذ</option>
+                                <option value="تم الإنجاز" {% if transaction.status == 'تم الإنجاز' %}selected{% endif %}>تم الإنجاز</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3" id="university_field" {% if 'التسجيل على الجامعة' in selected_services|map(attribute='name') %}style="display:block;"{% else %}style="display:none;"{% endif %}>
+                        <div class="col-md-12">
+                            <label for="university_name" class="form-label">🏛️ اسم الجامعة</label>
+                            <input type="text" class="form-control" id="university_name" name="university_name" value="{{ transaction.university_name }}">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="quantity" class="form-label">🔢 العدد</label>
+                            <input type="number" class="form-control" id="quantity" name="quantity" min="1" value="{{ transaction.quantity }}" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="total" class="form-label">💰 الإجمالي</label>
+                            <input type="text" class="form-control" id="total" value="{{ transaction.total }}" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="payment_status" class="form-label">💳 حالة الدفع</label>
+                            <select class="form-select" id="payment_status" name="payment_status">
+                                <option value="مدفوعة" {% if transaction.payment_status == 'مدفوعة' %}selected{% endif %}>مدفوعة (Оплачено)</option>
+                                <option value="لاحقاً" {% if transaction.payment_status == 'لاحقاً' %}selected{% endif %}>لاحقاً (Позже)</option>
+                                <option value="تقسيط" {% if transaction.payment_status == 'تقسيط' %}selected{% endif %}>تقسيط (Рассрочка)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="payment_method" class="form-label">💸 طريقة الدفع</label>
+                            <select class="form-select" id="payment_method" name="payment_method">
+                                <option value="كاش" {% if transaction.payment_method == 'كاش' %}selected{% endif %}>كاش (Наличные)</option>
+                                <option value="أونلاين" {% if transaction.payment_method == 'أونلاين' %}selected{% endif %}>أونلاين (Онлайн)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4" id="installment_fields" {% if transaction.payment_status == 'تقسيط' %}style="display:block;"{% else %}style="display:none;"{% endif %}>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label for="paid_amount" class="form-label">💵 المدفوع</label>
+                                    <input type="number" class="form-control" id="paid_amount" name="paid_amount" min="0" step="0.01" value="{{ transaction.paid_amount }}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="remaining_amount" class="form-label">💴 المتبقي</label>
+                                    <input type="number" class="form-control" id="remaining_amount" name="remaining_amount" min="0" step="0.01" value="{{ transaction.remaining_amount }}" readonly>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3" id="receiver_field" {% if transaction.payment_method == 'أونلاين' %}style="display:block;"{% else %}style="display:none;"{% endif %}>
+                        <div class="col-md-12">
+                            <label for="receiver_number" class="form-label">📱 رقم المستلم</label>
+                            <input type="text" class="form-control" id="receiver_number" name="receiver_number" value="{{ transaction.receiver_number }}">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="receive_date" class="form-label">📅 تاريخ الاستلام</label>
+                            <input type="date" class="form-control" id="receive_date" name="receive_date" value="{{ transaction.receive_date }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="delivery_date" class="form-label">📅 تاريخ التسليم</label>
+                            <input type="date" class="form-control" id="delivery_date" name="delivery_date" value="{{ transaction.delivery_date }}">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">📝 ملاحظات</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3">{{ transaction.notes }}</textarea>
+                    </div>
+                    
+                    <!-- عرض الملفات المرفقة -->
+                    {% if files %}
+                    <div class="mb-3">
+                        <label class="form-label">📁 الملفات المرفقة</label>
+                        <div class="border p-2">
+                            {% for file in files %}
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    {% if file.file_type == 'image' %}
+                                    <i class="bi bi-image text-primary"></i>
+                                    {% elif file.file_type == 'pdf' %}
+                                    <i class="bi bi-file-earmark-pdf text-danger"></i>
+                                    {% elif file.file_type == 'word' %}
+                                    <i class="bi bi-file-earmark-word text-primary"></i>
+                                    {% else %}
+                                    <i class="bi bi-file-earmark text-success"></i>
+                                    {% endif %}
+                                    {{ file.file_path.split('/')[-1] }}
+                                </div>
+                                <div>
+                                    <input type="checkbox" name="delete_files" value="{{ file.id }}" class="form-check-input">
+                                    <label class="form-check-label">حذف</label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- منطقة سحب وإفلات للملفات الجديدة -->
+                    <div class="mb-3">
+                        <label class="form-label">📁 إضافة ملفات جديدة (سحب وإفلات)</label>
+                        <div id="dropZone" class="border p-5 text-center bg-light" style="cursor: pointer; border-style: dashed;">
+                            <p>اسحب الملفات وأسقطها هنا</p>
+                            <p class="small text-muted">(أو انقر لاختيار الملفات)</p>
+                        </div>
+                        <input type="file" class="form-control d-none" id="document_files" name="document_files" multiple>
+                        <div id="fileList" class="mt-2"></div>
+                        <div class="form-text">يمكنك اختيار أكثر من ملف (الحد الأقصى 10 ملفات)</div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-check-circle"></i> حفظ التعديلات
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // التحكم في ظهور حقل الجامعة
+    document.querySelectorAll('.service-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const universityField = document.getElementById('university_field');
+            const isChecked = Array.from(document.querySelectorAll('.service-checkbox'))
+                .some(cb => cb.checked && cb.value === 'التسجيل على الجامعة');
+            
+            universityField.style.display = isChecked ? 'block' : 'none';
+            calculateTotal();
+        });
+    });
+    
+    // التحكم في ظهور حقل رقم المستلم
+    document.getElementById('payment_method').addEventListener('change', function() {
+        const receiverField = document.getElementById('receiver_field');
+        receiverField.style.display = this.value === 'أونلاين' ? 'block' : 'none';
+    });
+    
+    // التحكم في ظهور حقول التقسيط
+    document.getElementById('payment_status').addEventListener('change', function() {
+        const installmentFields = document.getElementById('installment_fields');
+        installmentFields.style.display = this.value === 'تقسيط' ? 'block' : 'none';
+        
+        // إذا تم تغيير حالة الدفع إلى تقسيط، قم بحساب المتبقي
+        if (this.value === 'تقسيط') {
+            calculateTotal();
+        }
+    });
+    
+    // تفعيل/تعطيل حقول السعر عند اختيار الخدمات
+    document.querySelectorAll('.service-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const priceInput = this.closest('.service-item').querySelector('.price-input');
+            const statusInput = this.closest('.service-item').querySelector('input[name^="status_"]');
+            
+            if (this.checked) {
+                priceInput.disabled = false;
+                if (statusInput) statusInput.disabled = false;
+            } else {
+                priceInput.disabled = true;
+                if (statusInput) statusInput.disabled = true;
+            }
+            calculateTotal();
+        });
+    });
+
+    // تمكين حقول السعر للخدمات المختارة مسبقاً عند التحميل
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.service-checkbox').forEach(checkbox => {
+            if (checkbox.checked) {
+                const priceInput = checkbox.closest('.service-item').querySelector('.price-input');
+                const statusInput = checkbox.closest('.service-item').querySelector('input[name^="status_"]');
+                priceInput.disabled = false;
+                if (statusInput) statusInput.disabled = false;
+            }
+        });
+    });
+    
+    // حساب الإجمالي تلقائياً
+    document.getElementById('quantity').addEventListener('input', calculateTotal);
+    document.querySelectorAll('.price-input').forEach(input => {
+        input.addEventListener('input', calculateTotal);
+    });
+    
+    function calculateTotal() {
+        const quantity = parseInt(document.getElementById('quantity').value) || 0;
+        let totalPrice = 0;
+        
+        document.querySelectorAll('.service-item').forEach(item => {
+            const checkbox = item.querySelector('.service-checkbox');
+            const priceInput = item.querySelector('.price-input');
+            
+            if (checkbox.checked) {
+                const price = parseFloat(priceInput.value) || 0;
+                totalPrice += price;
+            }
+        });
+        
+        const total = totalPrice * quantity;
+        document.getElementById('total').value = total.toFixed(2);
+        
+        // تحديث المتبقي إذا كان التقسيط
+        if (document.getElementById('payment_status').value === 'تقسيط') {
+            const paid = parseFloat(document.getElementById('paid_amount').value) || 0;
+            document.getElementById('remaining_amount').value = (total - paid).toFixed(2);
+        }
+    }
+    
+    // حساب المتبقي عند التعديل
+    document.getElementById('paid_amount').addEventListener('input', function() {
+        const total = parseFloat(document.getElementById('total').value) || 0;
+        const paid = parseFloat(this.value) || 0;
+        document.getElementById('remaining_amount').value = (total - paid).toFixed(2);
+    });
+    
+    // تفعيل الحساب عند التحميل
+    window.addEventListener('load', function() {
+        // إعادة حساب الإجمالي عند تحميل الصفحة
+        calculateTotal();
+        
+        // إظهار/إخفاء الحقول بناءً على القيم الحالية
+        document.querySelectorAll('.service-checkbox').forEach(checkbox => {
+            if (checkbox.checked && checkbox.value === 'التسجيل على الجامعة') {
+                document.getElementById('university_field').style.display = 'block';
+            }
+        });
+        
+        if (document.getElementById('payment_method').value === 'أونلاين') {
+            document.getElementById('receiver_field').style.display = 'block';
+        }
+        
+        if (document.getElementById('payment_status').value === 'تقسيط') {
+            document.getElementById('installment_fields').style.display = 'block';
+        }
+    });
+    
+    // سحب وإفلات الملفات
+    document.addEventListener('DOMContentLoaded', function() {
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('document_files');
+        const fileList = document.getElementById('fileList');
+        
+        if (dropZone) {
+            // فتح نافذة اختيار الملفات عند النقر على منطقة السحب
+            dropZone.addEventListener('click', function() {
+                fileInput.click();
+            });
+
+            // منع السلوك الافتراضي لمنع فتح الملف في المتصفح
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            // إضافة تأثيرات عند السحب
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight() {
+                dropZone.classList.add('bg-info', 'text-white');
+            }
+
+            function unhighlight() {
+                dropZone.classList.remove('bg-info', 'text-white');
+            }
+
+            // معالجة إفلات الملفات
+            dropZone.addEventListener('drop', handleDrop, false);
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                handleFiles(files);
+                fileInput.files = files; // تعيين الملفات لحقل الإدخال
+            }
+
+            // معالجة الملفات المختارة
+            fileInput.addEventListener('change', function() {
+                handleFiles(this.files);
+            });
+
+            function handleFiles(files) {
+                // نحد من عدد الملفات إلى 10
+                if (files.length > 10) {
+                    alert('الحد الأقصى لعدد الملفات هو 10');
+                    return;
+                }
+
+                // عرض الملفات المختارة
+                fileList.innerHTML = '';
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'd-flex justify-content-between align-items-center mb-2';
+                    fileItem.innerHTML = `
+                        <span>${file.name}</span>
+                        <span class="badge bg-primary">${formatFileSize(file.size)}</span>
+                    `;
+                    fileList.appendChild(fileItem);
+                }
+            }
+
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+        }
+    });
+    
+    // التحقق من صحة البيانات قبل الإرسال
+    document.getElementById('editForm').addEventListener('submit', function(e) {
+        let valid = true;
+        let errorMessage = '';
+        
+        // التحقق من وجود سعر للخدمات المختارة
+        document.querySelectorAll('.service-item').forEach(item => {
+            const checkbox = item.querySelector('.service-checkbox');
+            const priceInput = item.querySelector('.price-input');
+            
+            if (checkbox.checked) {
+                if (!priceInput.value || parseFloat(priceInput.value) <= 0) {
+                    valid = false;
+                    errorMessage = `يرجى إدخال سعر صالح للخدمة: ${checkbox.nextElementSibling.textContent.trim()}`;
+                }
+            }
+        });
+        
+        if (!valid) {
+            e.preventDefault();
+            alert(errorMessage);
+        }
+    });
+</script>
+{% endblock %}

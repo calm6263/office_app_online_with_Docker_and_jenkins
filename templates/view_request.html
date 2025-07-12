@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">تفاصيل الطلب #{{ request.id }}</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <h6>معلومات العميل</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p><strong>الاسم:</strong> {{ request.customer.name }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>الهاتف:</strong> {{ request.customer.phone }}</p>
+                        </div>
+                        {% if request.customer.email %}
+                        <div class="col-md-12">
+                            <p><strong>البريد الإلكتروني:</strong> {{ request.customer.email }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <h6>معلومات الطلب</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p><strong>نوع الخدمة:</strong> {{ request.service_type }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>حالة الطلب:</strong> 
+                                <span class="badge 
+                                    {% if request.status == 'جديد' %}bg-primary
+                                    {% elif request.status == 'قيد المعالجة' %}bg-warning
+                                    {% elif request.status == 'مكتمل' %}bg-success
+                                    {% else %}bg-danger{% endif %}">
+                                    {{ request.status }}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>تاريخ الطلب:</strong> {{ request.request_date.strftime('%Y-%m-%d %H:%M') }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <p><strong>تفاصيل الطلب:</strong></p>
+                        <p>{{ request.description }}</p>
+                    </div>
+                    
+                    {% if request.transaction %}
+                    <div class="alert alert-info">
+                        <p><strong>المعاملة المرتبطة:</strong> 
+                            <a href="{{ url_for('review_transactions') }}#{{ request.transaction.id }}" target="_blank">
+                                معاملة #{{ request.transaction.id }}
+                            </a>
+                        </p>
+                        <p><strong>المبلغ المستحق:</strong> {{ request.transaction.remaining_amount }} روبل</p>
+                        <p><strong>تاريخ التسليم المتوقع:</strong> {{ request.transaction.delivery_date or 'لم يتم تحديده' }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-4">
+                    <h6>المستندات المرفقة</h6>
+                    {% if request.files %}
+                    <div class="row">
+                        {% for file in request.files %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    {% if file.file_type == 'image' %}
+                                    <img src="{{ url_for('static', filename=file.file_path) }}" class="img-fluid" alt="صورة مرفقة">
+                                    {% else %}
+                                    <i class="bi bi-file-earmark-text display-4"></i>
+                                    <p class="mt-2">{{ file.file_path.split('/')[-1] }}</p>
+                                    {% endif %}
+                                    <a href="{{ url_for('static', filename=file.file_path) }}" target="_blank" class="btn btn-sm btn-info mt-2">
+                                        <i class="bi bi-download"></i> تحميل
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        لا توجد مستندات مرفقة
+                    </div>
+                    {% endif %}
+                </div>
+                
+                {% if 'user' in session %}
+                <div class="d-flex justify-content-end">
+                    <a href="{{ url_for('employee_requests') }}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> رجوع
+                    </a>
+                </div>
+                {% else %}
+                <div class="d-flex justify-content-end">
+                    <a href="{{ url_for('customer_dashboard') }}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> رجوع
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

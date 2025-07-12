@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="bi bi-person-circle"></i> {{ customer.name }}</h5>
+                </div>
+                <div class="card-body">
+                    <p><i class="bi bi-telephone"></i> {{ customer.phone }}</p>
+                    <p><i class="bi bi-envelope"></i> {{ customer.email or 'لا يوجد' }}</p>
+                    <hr>
+                    <a href="{{ url_for('new_service_request') }}" class="btn btn-primary w-100 mb-2">
+                        <i class="bi bi-plus-circle"></i> طلب خدمة جديدة
+                    </a>
+                    <a href="{{ url_for('customer_logout') }}" class="btn btn-outline-danger w-100">
+                        <i class="bi bi-box-arrow-right"></i> تسجيل الخروج
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-9">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-list-task"></i> طلبات الخدمات</h5>
+                </div>
+                <div class="card-body">
+                    {% if requests %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>رقم الطلب</th>
+                                    <th>نوع الخدمة</th>
+                                    <th>التاريخ</th>
+                                    <th>الحالة</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for req in requests %}
+                                <tr>
+                                    <td>#{{ req.id }}</td>
+                                    <td>{{ req.service_type }}</td>
+                                    <td>{{ req.request_date.strftime('%Y-%m-%d') }}</td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if req.status == 'جديد' %}bg-primary
+                                            {% elif req.status == 'قيد المعالجة' %}bg-warning
+                                            {% elif req.status == 'مكتمل' %}bg-success
+                                            {% else %}bg-danger{% endif %}">
+                                            {{ req.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('view_request', request_id=req.id) }}" 
+                                           class="btn btn-sm btn-info">
+                                            <i class="bi bi-eye"></i> تفاصيل
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info text-center">
+                        <i class="bi bi-info-circle"></i> لا توجد طلبات خدمات مسجلة
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

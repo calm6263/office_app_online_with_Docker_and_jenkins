@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card shadow">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-people"></i> طلبات العملاء</h5>
+        <div>
+            <a href="{{ url_for('main') }}" class="btn btn-light">
+                <i class="bi bi-arrow-left"></i> رجوع
+            </a>
+        </div>
+    </div>
+    
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>رقم الطلب</th>
+                        <th>اسم العميل</th>
+                        <th>نوع الخدمة</th>
+                        <th>تاريخ الطلب</th>
+                        <th>الحالة</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for request in requests %}
+                    <tr>
+                        <td>#{{ request.id }}</td>
+                        <td>{{ request.customer.name }}</td>
+                        <td>{{ request.service_type }}</td>
+                        <td>{{ request.request_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            <span class="badge 
+                                {% if request.status == 'جديد' %}bg-primary
+                                {% elif request.status == 'قيد المعالجة' %}bg-warning
+                                {% elif request.status == 'مكتمل' %}bg-success
+                                {% else %}bg-danger{% endif %}">
+                                {{ request.status }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('view_request', request_id=request.id) }}" 
+                               class="btn btn-sm btn-info">
+                                <i class="bi bi-eye"></i> تفاصيل
+                            </a>
+                            {% if request.status == 'جديد' %}
+                            <!-- إضافة حقول العميل المخفية في الرابط -->
+                            <a href="{{ url_for('create_transaction_from_request', 
+                                request_id=request.id,
+                                customer_name=request.customer.name,
+                                customer_phone=request.customer.phone,
+                                customer_email=request.customer.email|default('')) }}" 
+                               class="btn btn-sm btn-success">
+                                <i class="bi bi-cash-coin"></i> إنشاء معاملة
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            لا توجد طلبات خدمات حالية
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

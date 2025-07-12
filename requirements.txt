@@ -1,0 +1,9 @@
+flask
+flask-sqlalchemy
+psycopg2-binary
+werkzeug
+reportlab
+arabic-reshaper
+python-bidi
+pandas
+openpyxl

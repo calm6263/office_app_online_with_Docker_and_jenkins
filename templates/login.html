@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white text-center">
+                <h4><i class="bi bi-door-open"></i> نظام إدارة خدمات المكتب</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- قسم الموظفين -->
+                    <div class="col-md-6 border-end">
+                        <h5 class="text-center mb-4"><i class="bi bi-person-badge"></i> دخول الموظفين</h5>
+                        <form method="POST" action="{{ url_for('login') }}">
+                            <div class="mb-3">
+                                <label for="username" class="form-label">اسم المستخدم</label>
+                                <input type="text" class="form-control" id="username" name="username" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="password" class="form-label">كلمة المرور</label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control" id="password" name="password" required>
+                                    <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="bi bi-box-arrow-in-right"></i> دخول
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- قسم العملاء -->
+                    <div class="col-md-6">
+                        <h5 class="text-center mb-4"><i class="bi bi-person"></i> دخول العملاء</h5>
+                        <form method="POST" action="{{ url_for('customer_login') }}">
+                            <div class="mb-3">
+                                <label for="customer_phone" class="form-label">رقم الهاتف</label>
+                                <input type="text" class="form-control" id="customer_phone" name="phone" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="customer_password" class="form-label">كلمة المرور</label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control" id="customer_password" name="password" required>
+                                    <button class="btn btn-outline-secondary" type="button" id="toggleCustomerPassword">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="d-grid mb-3">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-box-arrow-in-right"></i> دخول
+                                </button>
+                            </div>
+                            <div class="text-center">
+                                <a href="{{ url_for('customer_register') }}" class="btn btn-link">
+                                    <i class="bi bi-person-plus"></i> إنشاء حساب جديد
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('togglePassword').addEventListener('click', function() {
+        const passwordInput = document.getElementById('password');
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        this.innerHTML = type === 'password' ? '<i class="bi bi-eye"></i>' : '<i class="bi bi-eye-slash"></i>';
+    });
+    
+    document.getElementById('toggleCustomerPassword').addEventListener('click', function() {
+        const passwordInput = document.getElementById('customer_password');
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        this.innerHTML = type === 'password' ? '<i class="bi bi-eye"></i>' : '<i class="bi bi-eye-slash"></i>';
+    });
+</script>
+{% endblock %}

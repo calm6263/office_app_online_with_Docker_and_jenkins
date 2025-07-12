@@ -1,0 +1,375 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-plus-circle"></i> إضافة معاملة جديدة</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('add_transaction') }}" enctype="multipart/form-data" id="transactionForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="client_name" class="form-label">👤 اسم العميل</label>
+                            <input type="text" class="form-control" id="client_name" name="client_name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="phone" class="form-label">📱 رقم الهاتف</label>
+                            <input type="text" class="form-control" id="phone" name="phone">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="office_location" class="form-label">📍 مكان الخدمة</label>
+                            <select class="form-select" id="office_location" name="office_location">
+                                <option value="داخل المكتب">داخل المكتب</option>
+                                <option value="خارج المكتب">خارج المكتب</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">🛠️ الخدمات</label>
+                            <div class="border p-2" style="max-height: 200px; overflow-y: auto;">
+                                {% for service in services %}
+                                <div class="form-check mb-2 service-item">
+                                    <input class="form-check-input service-checkbox" type="checkbox" 
+                                        name="services[]" value="{{ service.name }}" 
+                                        id="service_{{ loop.index }}">
+                                    <label class="form-check-label" for="service_{{ loop.index }}">{{ service.name }}</label>
+                                    <input type="number" class="form-control form-control-sm d-inline-block w-50 ms-2 price-input" 
+                                        name="price_{{ service.name }}" min="0" step="0.01" placeholder="أدخل السعر"
+                                        disabled>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- تعديل حقول اللغة المصدر واللغة الهدف -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="source_language" class="form-label">🌐 اللغة المصدر</label>
+                            <input type="text" class="form-control" id="source_language" 
+                                   name="source_language" placeholder="أدخل اللغة المصدر">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="target_language" class="form-label">🌐 اللغة الهدف</label>
+                            <input type="text" class="form-control" id="target_language" 
+                                   name="target_language" placeholder="أدخل اللغة الهدف">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3" id="university_field" style="display:none;">
+                        <div class="col-md-12">
+                            <label for="university_name" class="form-label">🏛️ اسم الجامعة</label>
+                            <input type="text" class="form-control" id="university_name" name="university_name">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="quantity" class="form-label">🔢 العدد</label>
+                            <input type="number" class="form-control" id="quantity" name="quantity" min="1" value="1" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="total" class="form-label">💰 الإجمالي</label>
+                            <input type="text" class="form-control" id="total" name="total" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="payment_status" class="form-label">💳 حالة الدفع</label>
+                            <select class="form-select" id="payment_status" name="payment_status">
+                                <option value="مدفوعة">مدفوعة (Оплачено)</option>
+                                <option value="لاحقاً">لاحقاً (Позже)</option>
+                                <option value="تقسيط">تقسيط (Рассрочка)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="payment_method" class="form-label">💸 طريقة الدفع</label>
+                            <select class="form-select" id="payment_method" name="payment_method">
+                                <option value="كاش">كاش (Наличные)</option>
+                                <option value="أونلاين">أونلاين (Онлайн)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4" id="installment_fields" style="display:none;">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label for="paid_amount" class="form-label">💵 المدفوع</label>
+                                    <input type="number" class="form-control" id="paid_amount" name="paid_amount" min="0" step="0.01" value="0">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="remaining_amount" class="form-label">💴 المتبقي</label>
+                                    <input type="number" class="form-control" id="remaining_amount" name="remaining_amount" min="0" step="0.01" value="0" readonly>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3" id="receiver_field" style="display:none;">
+                        <div class="col-md-12">
+                            <label for="receiver_number" class="form-label">📱 رقم المستلم</label>
+                            <input type="text" class="form-control" id="receiver_number" name="receiver_number">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="receive_date" class="form-label">📅 تاريخ الاستلام</label>
+                            <input type="date" class="form-control" id="receive_date" name="receive_date">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="delivery_date" class="form-label">📅 تاريخ التسليم</label>
+                            <input type="date" class="form-control" id="delivery_date" name="delivery_date">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">📝 ملاحظات</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="2"></textarea>
+                    </div>
+                    
+                    <!-- منطقة سحب وإفلات الملفات -->
+                    <div class="mb-3">
+                        <label class="form-label">📁 ملفات المستندات (سحب وإفلات)</label>
+                        <div id="dropZone" class="border p-5 text-center bg-light" style="cursor: pointer; border-style: dashed;">
+                            <p>اسحب الملفات وأسقطها هنا</p>
+                            <p class="small text-muted">(أو انقر لاختيار الملفات)</p>
+                        </div>
+                        <input type="file" class="form-control d-none" id="document_files" name="document_files" multiple>
+                        <div id="fileList" class="mt-2"></div>
+                        <div class="form-text">يمكنك اختيار أكثر من ملف (الحد الأقصى 10 ملفات)</div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="bi bi-check-circle"></i> إتمام العملية
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="d-flex justify-content-between mb-4">
+            <!-- إظهار الأزرار فقط للمدير إبراهيم -->
+            {% if user == 'ابراهيم' %}
+            <a href="{{ url_for('review_transactions') }}" class="btn btn-primary">
+                <i class="bi bi-list-check"></i> مراجعة المعاملات
+            </a>
+            {% endif %}
+            
+            <a href="{{ url_for('review_transactions', pending='true') }}" class="btn btn-warning">
+                <i class="bi bi-exclamation-triangle"></i> المعاملات غير المدفوعة
+            </a>
+            <a href="{{ url_for('review_transactions', status_filter='قيد التنفيذ') }}" class="btn btn-info">
+                <i class="bi bi-hourglass-split"></i> المعاملات قيد التنفيذ
+            </a>
+            
+            <!-- أزرار فلترة طريقة الدفع الجديدة - تظهر فقط لإبراهيم -->
+            {% if user == 'ابراهيم' %}
+            <a href="{{ url_for('review_transactions', payment_method='كاش') }}" class="btn btn-success">
+                <i class="bi bi-cash"></i> معاملات الكاش
+            </a>
+            <a href="{{ url_for('review_transactions', payment_method='أونلاين') }}" class="btn btn-primary">
+                <i class="bi bi-credit-card"></i> معاملات الأونلاين
+            </a>
+            {% endif %}
+            
+            <!-- إظهار الأزرار فقط للمدير إبراهيم -->
+            {% if user == 'ابراهيم' %}
+            <a href="{{ url_for('manage_users') }}" class="btn btn-secondary">
+                <i class="bi bi-people"></i> إدارة المستخدمين
+            </a>
+            <a href="{{ url_for('review_transactions') }}" class="btn btn-info">
+                <i class="bi bi-cash-coin"></i> مراجعة المصاريف
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    // التحكم في ظهور حقل الجامعة
+    document.querySelectorAll('.service-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const universityField = document.getElementById('university_field');
+            const isChecked = Array.from(document.querySelectorAll('.service-checkbox'))
+                .some(cb => cb.checked && cb.value === 'التسجيل على الجامعة');
+            
+            universityField.style.display = isChecked ? 'block' : 'none';
+            calculateTotal();
+        });
+    });
+    // تفعيل/تعطيل حقول السعر عند اختيار الخدمات
+document.querySelectorAll('.service-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        const priceInput = this.closest('.service-item').querySelector('.price-input');
+        priceInput.disabled = !this.checked;
+        
+        // إضافة التحقق من السعر عند التغيير
+        if (this.checked && (!priceInput.value || parseFloat(priceInput.value) <= 0)) {
+            priceInput.value = '';
+            priceInput.focus();
+        }
+        
+        calculateTotal();
+    });
+});
+// عند التحميل: تعطيل حقول الأسعار للخدمات غير المختارة
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.service-checkbox').forEach(checkbox => {
+        const priceInput = checkbox.closest('.service-item').querySelector('.price-input');
+        priceInput.disabled = !checkbox.checked;
+    });
+});
+    // تفعيل/تعطيل حقول السعر عند اختيار الخدمات
+    document.querySelectorAll('.service-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const priceInput = this.closest('.service-item').querySelector('.price-input');
+            priceInput.disabled = !this.checked;
+            calculateTotal();
+        });
+    });
+    
+    // التحكم في ظهور حقل رقم المستلم
+    document.getElementById('payment_method').addEventListener('change', function() {
+        const receiverField = document.getElementById('receiver_field');
+        receiverField.style.display = this.value === 'أونلاين' ? 'block' : 'none';
+    });
+    
+    // التحكم في ظهور حقول التقسيط
+    document.getElementById('payment_status').addEventListener('change', function() {
+        const installmentFields = document.getElementById('installment_fields');
+        installmentFields.style.display = this.value === 'تقسيط' ? 'block' : 'none';
+    });
+    
+    // حساب الإجمالي تلقائياً
+    document.getElementById('quantity').addEventListener('input', calculateTotal);
+    document.querySelectorAll('.price-input').forEach(input => {
+        input.addEventListener('input', calculateTotal);
+    });
+    
+    function calculateTotal() {
+        const quantity = parseInt(document.getElementById('quantity').value) || 0;
+        let totalPrice = 0;
+        
+        document.querySelectorAll('.service-checkbox').forEach((checkbox, index) => {
+            if (checkbox.checked) {
+                const priceInput = document.querySelectorAll('.price-input')[index];
+                const price = parseFloat(priceInput.value) || 0;
+                totalPrice += price;
+            }
+        });
+        
+        const total = totalPrice * quantity;
+        document.getElementById('total').value = total.toFixed(2);
+        
+        // تحديث المتبقي إذا كان التقسيط
+        if (document.getElementById('payment_status').value === 'تقسيط') {
+            const paid = parseFloat(document.getElementById('paid_amount').value) || 0;
+            document.getElementById('remaining_amount').value = (total - paid).toFixed(2);
+        }
+    }
+    
+    // حساب المتبقي عند التعديل
+    document.getElementById('paid_amount').addEventListener('input', function() {
+        const total = parseFloat(document.getElementById('total').value) || 0;
+        const paid = parseFloat(this.value) || 0;
+        document.getElementById('remaining_amount').value = (total - paid).toFixed(2);
+    });
+    
+    // تعيين تواريخ افتراضية
+    document.getElementById('receive_date').valueAsDate = new Date();
+    document.getElementById('delivery_date').valueAsDate = new Date();
+    
+    // تفعيل الحساب عند التحميل
+    window.addEventListener('load', calculateTotal);
+    
+    // سحب وإفلات الملفات
+    document.addEventListener('DOMContentLoaded', function() {
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('document_files');
+        const fileList = document.getElementById('fileList');
+        
+        if (dropZone) {
+            // فتح نافذة اختيار الملفات عند النقر على منطقة السحب
+            dropZone.addEventListener('click', function() {
+                fileInput.click();
+            });
+
+            // منع السلوك الافتراضي لمنع فتح الملف في المتصفح
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            // إضافة تأثيرات عند السحب
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight() {
+                dropZone.classList.add('bg-info', 'text-white');
+            }
+
+            function unhighlight() {
+                dropZone.classList.remove('bg-info', 'text-white');
+            }
+
+            // معالجة إفلات الملفات
+            dropZone.addEventListener('drop', handleDrop, false);
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                handleFiles(files);
+                fileInput.files = files; // تعيين الملفات لحقل الإدخال
+            }
+
+            // معالجة الملفات المختارة
+            fileInput.addEventListener('change', function() {
+                handleFiles(this.files);
+            });
+
+            function handleFiles(files) {
+                // نحد من عدد الملفات إلى 10
+                if (files.length > 10) {
+                    alert('الحد الأقصى لعدد الملفات هو 10');
+                    return;
+                }
+
+                // عرض الملفات المختارة
+                fileList.innerHTML = '';
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'd-flex justify-content-between align-items-center mb-2';
+                    fileItem.innerHTML = `
+                        <span>${file.name}</span>
+                        <span class="badge bg-primary">${formatFileSize(file.size)}</span>
+                    `;
+                    fileList.appendChild(fileItem);
+                }
+            }
+
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+        }
+    });
+</script>
+{% endblock %}

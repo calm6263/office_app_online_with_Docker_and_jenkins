@@ -17,31 +17,31 @@ pipeline {
         stage('Run') {
             steps {
                 sh 'docker-compose -f docker-compose.yml -f docker-compose.jenkins.yml up -d'
-                sh 'sleep 30'  # انتظار حتى تبدأ الحاويات
+                sh 'sleep 30'  // Wait for containers to start
             }
         }
         
         stage('Health Check') {
             steps {
                 script {
-                    // فحص حالة حاوية الويب
+                    // Check web container status
                     def webStatus = sh(
                         script: 'docker-compose -f docker-compose.yml -f docker-compose.jenkins.yml ps -q web',
                         returnStatus: true
                     )
                     
                     if (webStatus != 0) {
-                        error "حاوية الويب لم تبدأ بنجاح"
+                        error "Web container failed to start"
                     }
                     
-                    // فحص حالة حاوية قاعدة البيانات
+                    // Check database readiness
                     def dbStatus = sh(
                         script: 'docker-compose -f docker-compose.yml -f docker-compose.jenkins.yml exec db pg_isready -U user',
                         returnStatus: true
                     )
                     
                     if (dbStatus != 0) {
-                        error "قاعدة البيانات غير جاهزة"
+                        error "Database is not ready"
                     }
                 }
             }

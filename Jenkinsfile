@@ -22,7 +22,18 @@ pipeline {
         
         stage('Health Check') {
             steps {
-                // إضافة خطوات فحص الصحة هنا
+                // تم إضافة خطوة فحص الصحة الأساسية
+                script {
+                    timeout(time: 1, unit: 'MINUTES') {
+                        waitUntil {
+                            def status = sh(
+                                script: 'docker compose -f docker-compose.yml -f docker-compose.jenkins.yml ps --services --filter "status=running"',
+                                returnStatus: true
+                            )
+                            return status == 0
+                        }
+                    }
+                }
             }
         }
     }

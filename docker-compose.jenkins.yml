@@ -24,3 +24,9 @@ services:
       ln -s /usr/local/lib/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose &&
       /usr/local/bin/jenkins.sh
       "
+
+volumes:
+  jenkins_data:
+
+networks:
+  jenkins-net:

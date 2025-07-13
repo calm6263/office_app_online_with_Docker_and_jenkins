@@ -15,16 +15,19 @@ services:
       - jenkins-net
     command: >-
       bash -c "
+      apt-get update && 
+      apt-get install -y curl gnupg software-properties-common &&
+      # تثبيت Docker
+      curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg &&
+      echo \"deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable\" > /etc/apt/sources.list.d/docker.list &&
       apt-get update &&
-      apt-get install -y curl &&
-      curl -fsSL https://get.docker.com | sh &&
-      mkdir -p /usr/local/lib/docker/cli-plugins &&
-      curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m) -o /usr/local/lib/docker/cli-plugins/docker-compose &&
-      chmod +x /usr/local/lib/docker/cli-plugins/docker-compose &&
-      ln -s /usr/local/lib/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose &&
+      apt-get install -y docker-ce docker-ce-cli containerd.io &&
+      # تثبيت Docker Compose
+      curl -L \"https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)\" -o /usr/local/bin/docker-compose &&
+      chmod +x /usr/local/bin/docker-compose &&
       /usr/local/bin/jenkins.sh
       "
-
+      
 volumes:
   jenkins_data:
 

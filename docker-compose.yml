@@ -1,7 +1,7 @@
 services:
   web:
     build: .
-    command: bash -c "sleep 10 && python app.py"
+    command: bash -c "wait_for_db && python app.py"
     tty: true 
     volumes:
       - .:/app

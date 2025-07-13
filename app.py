@@ -1976,31 +1976,28 @@ def wait_for_db():
             time.sleep(retry_delay)
     print("❌ فشل الاتصال بقاعدة البيانات بعد عدة محاولات")
     return False
+def wait_for_db():
+    max_retries = 10
+    retry_delay = 5
+    
+    for i in range(max_retries):
+        try:
+            db.engine.connect()
+            print("✅ تم الاتصال بنجاح بقاعدة البيانات")
+            return True
+        except OperationalError:
+            print(f"⌛ محاولة {i+1}/{max_retries}: قاعدة البيانات غير جاهزة، إعادة المحاولة بعد {retry_delay} ثواني...")
+            time.sleep(retry_delay)
+    print("❌ فشل الاتصال بقاعدة البيانات بعد عدة محاولات")
+    return False
 
 if __name__ == '__main__':
     with app.app_context():
-        # إضافة وظيفة انتظار قاعدة البيانات
-        import time
-        from sqlalchemy.exc import OperationalError
-        
-        max_retries = 5
-        retry_delay = 3
-        db_connected = False  # تعريف المتغير
-        
-        for i in range(max_retries):
-            try:
-                db.engine.connect()
-                print("✅ تم الاتصال بنجاح بقاعدة البيانات")
-                db_connected = True
-                break
-            except OperationalError as e:
-                print(f"⌛ محاولة {i+1}/{max_retries}: قاعدة البيانات غير جاهزة - {str(e)}")
-                time.sleep(retry_delay)
-        
-        if db_connected:
-    # إنشاء جميع الجداول إذا لم تكن موجودة
+        if wait_for_db():
             db.create_all()
             print("✅ تم إنشاء الجداول بنجاح")
+            
+            # إنشاء المستخدمين الافتراضيين
             default_users = [
                 ("مصطفى", "1234", "user"),
                 ("محمد", "5678", "user"),
@@ -2016,10 +2013,11 @@ if __name__ == '__main__':
                         role=role
                     )
                     db.session.add(new_user)
+                    print(f"تم إنشاء المستخدم: {username}")
             
             db.session.commit()
             print("تم تهيئة قاعدة البيانات بنجاح")
         else:
-            print("❌ فشل الاتصال بقاعدة البيانات بعد عدة محاولات")
+            print("❌ فشل تهيئة التطبيق بسبب مشاكل في قاعدة البيانات")
     
     app.run(host='0.0.0.0', port=5000, debug=True)

@@ -11,7 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# انتظار قاعدة البيانات
+# Add wait utility
 ADD https://github.com/ufoscout/docker-compose-wait/releases/download/2.12.0/wait /wait
 RUN chmod +x /wait
 

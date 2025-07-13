@@ -10,13 +10,13 @@ pipeline {
         
         stage('Build') {
             steps {
-                sh 'docker-compose -f docker-compose.yml -f docker-compose.jenkins.yml build'
+                sh 'docker-compose -f docker-compose.yml build'
             }
         }
         
         stage('Run') {
             steps {
-                sh 'docker-compose -f docker-compose.yml -f docker-compose.jenkins.yml up -d'
+                sh 'docker-compose -f docker-compose.yml up -d'
                 sh 'sleep 30'  // Wait for containers to start
             }
         }
@@ -24,12 +24,29 @@ pipeline {
         stage('Health Check') {
             steps {
                 script {
-                    // Verify Docker installation inside Jenkins container
+                    // Verify Docker installation
                     sh 'docker --version'
                     sh 'docker-compose --version'
                     
                     // Check web container status
-                    sh 'docker-compose -f docker-compose.yml -f docker-compose.jenkins.yml ps'
+                    def webStatus = sh(
+                        script: 'docker-compose -f docker-compose.yml ps -q web',
+                        returnStatus: true
+                    )
+                    
+                    if (webStatus != 0) {
+                        error "Web container failed to start"
+                    }
+                    
+                    // Check database readiness
+                    def dbStatus = sh(
+                        script: 'docker-compose -f docker-compose.yml exec db pg_isready -U user',
+                        returnStatus: true
+                    )
+                    
+                    if (dbStatus != 0) {
+                        error "Database is not ready"
+                    }
                 }
             }
         }
@@ -37,7 +54,7 @@ pipeline {
     
     post {
         always {
-            sh 'docker-compose -f docker-compose.yml -f docker-compose.jenkins.yml down -v'
+            sh 'docker-compose -f docker-compose.yml down -v'
         }
     }
 }

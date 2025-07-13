@@ -10,8 +10,13 @@ services:
     ports:
       - "5000:5000"
     environment:
-      DATABASE_URL: postgresql://user:password@db:5432/office_services
-      SECRET_KEY: your_secret_key_here
+      - DATABASE_URL=postgresql://user:password@db:5432/office_services
+      - SECRET_KEY=${SECRET_KEY}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     depends_on:
       db:
         condition: service_healthy

@@ -1,9 +1,9 @@
-flask
-flask-sqlalchemy
+Flask
+Flask-SQLAlchemy
 psycopg2-binary
-werkzeug
+gunicorn
+python-dotenv
 reportlab
 arabic-reshaper
 python-bidi
 pandas
-openpyxl

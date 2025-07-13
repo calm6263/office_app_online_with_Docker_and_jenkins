@@ -1,19 +1,9 @@
-Flask
-Flask-SQLAlchemy
+flask
+flask-sqlalchemy
 psycopg2-binary
-<<<<<<< HEAD
-gunicorn
-python-dotenv
+werkzeug
 reportlab
 arabic-reshaper
 python-bidi
 pandas
-=======
-python-dotenv
-gunicorn
-arabic-reshaper
-python-bidi
-reportlab
-pandas
-pytest
->>>>>>> 71228168046667e5ed08ebad6ebd7472f5ee1064
+openpyxl

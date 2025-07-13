@@ -1,51 +1,37 @@
 pipeline {
     agent any
-    environment {
-        DOCKER_COMPOSE = 'docker-compose -f docker-compose.yml -f docker-compose.jenkins.yml'
-    }
+
     stages {
-        stage('Checkout') {
+        stage('Build') {
             steps {
-                checkout scm
+                sh 'docker-compose -f docker-compose.yml -f docker-compose.jenkins.yml build'
             }
         }
-        stage('Build & Run') {
+        
+        stage('Run') {
             steps {
-                script {
-                    sh "${DOCKER_COMPOSE} build --pull"
-                    sh "${DOCKER_COMPOSE} up -d --force-recreate"
-                }
+                sh 'docker-compose -f docker-compose.yml -f docker-compose.jenkins.yml up -d'
             }
         }
+        
         stage('Health Check') {
             steps {
                 script {
-                    timeout(time: 5, unit: 'MINUTES') {
-                        waitUntil {
-                            try {
-                                sh 'curl -sSf http://localhost:5000 > /dev/null'
-                                return true
-                            } catch (Exception e) {
-                                return false
-                            }
-                        }
+                    waitUntil {
+                        def status = sh(
+                            script: 'docker inspect --format="{{.State.Health.Status}}" office_app-web-1',
+                            returnStdout: true
+                        ).trim()
+                        return status == 'healthy'
                     }
                 }
             }
         }
-        stage('Test') {
-            steps {
-                script {
-                    sh "${DOCKER_COMPOSE} exec web python -m pytest tests/"
-                }
-            }
-        }
     }
+    
     post {
         always {
-            script {
-                sh "${DOCKER_COMPOSE} down -v --remove-orphans"
-            }
+            sh 'docker-compose -f docker-compose.yml -f docker-compose.jenkins.yml down -v'
         }
     }
 }

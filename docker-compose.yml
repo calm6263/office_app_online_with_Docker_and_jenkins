@@ -1,8 +1,7 @@
 services:
   web:
     build: .
-    command: bash -c "wait_for_db && python app.py"
-    tty: true 
+    command: bash -c "/wait-for-it.sh db:5432 -- python app.py"
     volumes:
       - .:/app
       - transaction_files:/app/static/transaction_files
@@ -12,11 +11,6 @@ services:
     environment:
       - DATABASE_URL=postgresql://user:password@db:5432/office_services
       - SECRET_KEY=${SECRET_KEY}
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
     depends_on:
       db:
         condition: service_healthy

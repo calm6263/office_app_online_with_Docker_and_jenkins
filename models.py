@@ -1,7 +1,22 @@
 from app import db
 from datetime import datetime
 from sqlalchemy import Index
-
+from sqlalchemy.exc import OperationalError
+import time
+def wait_for_db():
+    max_retries = 10
+    retry_delay = 5
+    
+    for i in range(max_retries):
+        try:
+            db.engine.connect()
+            print("✅ تم الاتصال بنجاح بقاعدة البيانات")
+            return True
+        except OperationalError:
+            print(f"⌛ محاولة {i+1}/{max_retries}: قاعدة البيانات غير جاهزة، إعادة المحاولة بعد {retry_delay} ثواني...")
+            time.sleep(retry_delay)
+    print("❌ فشل الاتصال بقاعدة البيانات بعد عدة محاولات")
+    return False
 class User(db.Model):
     __tablename__ = 'users'  # تغيير هنا من 'user' إلى 'users'
     id = db.Column(db.Integer, primary_key=True)

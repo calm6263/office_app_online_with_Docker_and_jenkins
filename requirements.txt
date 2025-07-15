@@ -1,11 +1,8 @@
 flask
 flask_sqlalchemy
-psycopg2-binary
 werkzeug
-python-dotenv
+psycopg2-binary
 reportlab
 arabic-reshaper
 python-bidi
 pandas
-openpyxl
-pytest

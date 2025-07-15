@@ -5,6 +5,7 @@ FROM python:3.10-slim-bullseye
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 ENV DEBIAN_FRONTEND noninteractive
+RUN sed -i 's/main/main non-free/' /etc/apt/sources.list
 
 # تثبيت حزم النظام المطلوبة
 RUN apt-get update && apt-get install -y \
@@ -15,7 +16,7 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     libpng-dev \
     libjpeg-dev \
-    ttf-freefont \
+    fonts-freefont-ttf \
     fonts-dejavu \
     fonts-freefont-ttf \
     && rm -rf /var/lib/apt/lists/*

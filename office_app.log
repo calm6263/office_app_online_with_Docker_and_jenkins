@@ -2909,3 +2909,9 @@ FileNotFoundError: [WinError 2] The system cannot find the file specified
 2025-07-13 12:29:18,895 - INFO -  * Restarting with stat
 2025-07-13 12:29:30,064 - WARNING -  * Debugger is active!
 2025-07-13 12:29:30,082 - INFO -  * Debugger PIN: 956-697-877
+2025-07-13 12:39:47,461 - INFO - 172.18.0.1 - - [13/Jul/2025 12:39:47] "[32mGET / HTTP/1.1[0m" 302 -
+2025-07-13 12:39:48,041 - INFO - 172.18.0.1 - - [13/Jul/2025 12:39:48] "GET /login HTTP/1.1" 200 -
+2025-07-13 12:39:50,831 - INFO - 172.18.0.1 - - [13/Jul/2025 12:39:50] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-07-13 12:39:56,885 - INFO - 172.18.0.1 - - [13/Jul/2025 12:39:56] "[32mPOST /login HTTP/1.1[0m" 302 -
+2025-07-13 12:39:57,102 - INFO - 172.18.0.1 - - [13/Jul/2025 12:39:57] "GET /main HTTP/1.1" 200 -
+2025-07-13 12:39:59,683 - INFO - 172.18.0.1 - - [13/Jul/2025 12:39:59] "GET /review_transactions HTTP/1.1" 200 -

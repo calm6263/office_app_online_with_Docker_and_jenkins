@@ -12,7 +12,7 @@ services:
       - transaction_files:/app/static/transaction_files
       - database_backups:/app/database_backups
     ports:
-      - "5000:5000"
+      - "5001:5000"
     environment:
       DATABASE_URL: postgresql://user:password@db:5432/office_services
       SECRET_KEY: your_secret_key_here

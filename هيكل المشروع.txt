@@ -1,22 +1,39 @@
-office_app_online/
-├── app.py
-├── models.py
-├── requirements.txt
-├── templates/
-│   ├── base.html
-│   ├── login.html
-│   ├── main.html
-│   ├── add_transaction.html
-│   ├── review_transactions.html
-│   ├── manage_users.html
-│   ├── transaction_images.html
-│   └── pdf_report.html
-├── static/
+office-services/
+├── .gitignore
+├── app.py                  # Main application
+├── models.py               # Database models
+├── docker-compose.yml      # Docker configuration
+├── Dockerfile              # Web service Dockerfile
+├── backup.sql              # Sample database backup
+├── requirements.txt        # Python dependencies
+├── static/                 # Static assets
 │   ├── css/
-│   │   └── style.css
 │   ├── js/
-│   │   └── script.js
+│   ├── fonts/
 │   └── img/
-│       └── logo.png
-└── instance/
-    └── office_services.db
+├── templates/              # HTML templates
+│   ├── main.html
+│   ├── review_transactions.html
+│   ├── customer_dashboard.html
+│   └── ... (20+ templates)
+└── database_backups/       # Auto-generated backups
+-------------------------------------------------------------------
+office-services/
+├── .gitignore
+├── app.py                  # التطبيق الرئيسي
+├── models.py               # نماذج قاعدة البيانات
+├── docker-compose.yml      # إعدادات Docker
+├── Dockerfile              # Dockerfile للخدمة
+├── backup.sql              # نسخة احتياطية نموذجية
+├── requirements.txt        # متطلبات بايثون
+├── static/                 # الأصول الثابتة
+│   ├── css/
+│   ├── js/
+│   ├── fonts/
+│   └── img/
+├── templates/              # قوالب HTML
+│   ├── main.html
+│   ├── review_transactions.html
+│   ├── customer_dashboard.html
+│   └── ... (20+ قالب)
+└── database_backups/       # النسخ الاحتياطية التلقائية

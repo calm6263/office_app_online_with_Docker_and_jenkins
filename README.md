@@ -1,70 +1,107 @@
-# Система перевода и управления офисом
-
-Интегрированная система для управления переводами, сертификацией и другими офисными услугами.
-
-## Возможности
-
-- Управление финансовыми транзакциями
-- Отслеживание заказов клиентов
-- Система внутренних уведомлений
-- Финансовые отчеты и экспорт в PDF/Excel
-- Двуязычный пользовательский интерфейс (арабский/русский)
-
-## Требования
-
-- Python 3.9+
-- PostgreSQL
-- Docker (опционально)
-
-## Установка с помощью Docker
-
-```bash
-docker-compose up -d --build
-
 # Translation Services and Office Management System
 
-An integrated system for managing translation, certification, and other office services.
+An integrated system for managing translation, certification, and other office services with financial tracking.
 
 ## Features
+- Multi-user authentication (admin/employees/customers)
+- Financial transaction management with debt tracking
+- Automated daily database backups
+- PDF and Excel reporting
+- Customer request management system
+- Bilingual interface (Arabic/Russian)
+- Jenkins integration for CI/CD
 
-- Financial Transaction Management
-- Customer Order Tracking
-- Internal Notification System
-- Financial Reports and PDF/Excel Export
-- Bilingual User Interface (Arabic/Russian)
-
-## Requirements
-
-- Python 3.9+
+## Technologies
+- Python 3.9
+- Flask
 - PostgreSQL
-- Docker (Optional)
+- SQLAlchemy
+- Docker
+- Jenkins
+- ReportLab (PDF generation)
+- Pandas (Excel export)
 
-## Installation Using Docker
-
-```bash
+## Installation
 docker-compose up -d --build
 
+-------------------------------------------------------------------------------------------
 
+Система управления услугами перевода и офисом
+Интегрированная система для управления услугами перевода, заверения документов и другими офисными услугами с финансовым учетом.
 
-# نظام إدارة خدمات الترجمة والمكاتب
+Основные функции
+Многоуровневая аутентификация (админ/сотрудники/клиенты)
 
-نظام متكامل لإدارة خدمات الترجمة، التصديق، والخدمات المكتبية الأخرى.
+Управление финансовыми операциями с отслеживанием долгов
 
-## الميزات
+Автоматическое резервное копирование БД
 
-- إدارة المعاملات المالية
-- متابعة طلبات العملاء
-- نظام إشعارات داخلي
-- تقارير مالية وتصدير PDF/Excel
-- واجهة مستخدم ثنائية اللغة (عربية/روسية)
+Генерация отчетов в PDF и Excel
 
-## المتطلبات
+Система управления запросами клиентов
 
-- Python 3.9+
-- PostgreSQL
-- Docker (اختياري)
+Двуязычный интерфейс (арабский/русский)
 
-## التنصيب باستخدام Docker
+Интеграция с Jenkins для CI/CD
 
-```bash
+Технологии
+Python 3.9
+
+Flask
+
+PostgreSQL
+
+SQLAlchemy
+
+Docker
+
+Jenkins
+
+ReportLab (генерация PDF)
+
+Pandas (экспорт в Excel)
+
+Установка
+ 
+docker-compose up -d --build
+
+------------------------------------------------------------------------------------
+
+نظام إدارة خدمات الترجمة والمكاتب
+نظام متكامل لإدارة خدمات الترجمة، تصديق المستندات والخدمات المكتبية مع تتبع مالي.
+
+الميزات
+مصادقة متعددة المستخدمين (مدير/موظفين/عملاء)
+
+إدارة المعاملات المالية مع تتبع الديون
+
+نسخ احتياطي تلقائي لقاعدة البيانات
+
+تقارير PDF و Excel
+
+نظام إدارة طلبات العملاء
+
+واجهة ثنائية اللغة (عربية/روسية)
+
+تكامل مع Jenkins للنشر المستمر
+
+التقنيات المستخدمة
+Python 3.9
+
+Flask
+
+PostgreSQL
+
+SQLAlchemy
+
+Docker
+
+Jenkins
+
+ReportLab (إنشاء PDF)
+
+Pandas (تصدير Excel)
+
+التنصيب
+bash
 docker-compose up -d --build

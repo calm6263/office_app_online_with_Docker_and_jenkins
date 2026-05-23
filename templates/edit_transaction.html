@@ -13,6 +13,7 @@
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('edit_transaction', transaction_id=transaction.id) }}" enctype="multipart/form-data" id="editForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <!-- حقول التاريخ والوقت -->
                     <div class="row mb-3">
                         <div class="col-md-6">

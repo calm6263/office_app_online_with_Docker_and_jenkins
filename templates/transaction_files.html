@@ -34,8 +34,9 @@
                             {% endif %}
                             {{ file.file_path.split('/')[-1] }}
                         </span>
-                        {% if user == 'ابراهيم' or user == transaction.user %}
+                        {% if session.get('role') == 'admin' or user == transaction.user %}
                         <form method="POST" action="{{ url_for('delete_file', file_id=file.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-sm btn-danger"
                                 onclick="return confirm('هل أنت متأكد من حذف هذا الملف؟')">
                                 <i class="bi bi-trash"></i>

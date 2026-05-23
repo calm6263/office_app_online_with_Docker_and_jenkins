@@ -1,8 +1,31 @@
-flask
-flask_sqlalchemy
-werkzeug
-psycopg2-binary
-reportlab
-arabic-reshaper
-python-bidi
-pandas
+# Web Framework
+flask==3.0.3
+flask-sqlalchemy==3.1.1
+flask-wtf==1.2.1
+flask-limiter==3.8.0
+
+# Server
+gunicorn==22.0.0
+
+# Database
+psycopg2-binary==2.9.9
+SQLAlchemy==2.0.36
+
+# Security
+werkzeug==3.0.6
+cryptography==43.0.3
+
+# PDF & Reports
+reportlab==4.2.5
+arabic-reshaper==3.0.0
+python-bidi==0.4.2
+
+# Excel export
+pandas==2.2.3
+openpyxl==3.1.5
+
+# Database migrations
+flask-migrate==4.0.7
+
+# Utilities
+python-dotenv==1.0.1

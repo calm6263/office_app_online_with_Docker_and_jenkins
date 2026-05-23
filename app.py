@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import glob
 import threading
@@ -6,9 +7,18 @@ import time
 import logging
 import traceback
 import json
+import subprocess
+import uuid
+import mimetypes
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, jsonify
+from functools import wraps
+
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, jsonify, g
 from flask_sqlalchemy import SQLAlchemy
+from flask_wtf.csrf import CSRFProtect, generate_csrf
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_migrate import Migrate
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from reportlab.pdfgen import canvas
@@ -21,57 +31,73 @@ import pandas as pd
 import io
 from sqlalchemy import extract, func, case, Index, and_, or_
 from sqlalchemy.orm import load_only, joinedload
-import time
 from sqlalchemy.exc import OperationalError
+from config import get_config
+from decorators import login_required, admin_required, customer_login_required
 
-# تحديد المسار الأساسي للمشروع
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key_here')
-DATABASE_URI = os.environ.get('DATABASE_URL', 'postgresql://user:password@db:5432/office_services')
-if DATABASE_URI.startswith("postgres://"):
-    DATABASE_URI = DATABASE_URI.replace("postgres://", "postgresql://", 1)
+app.config.from_object(get_config())
 
-app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-# تحديث المسارات لاستخدام المسار المطلق
-app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'static', 'transaction_files')
-app.config['BACKUP_DIR'] = os.path.join(BASE_DIR, 'database_backups')
-app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'doc', 'docx', 'txt'}
-
-# تحسين إعدادات جلسة قاعدة البيانات
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_pre_ping': True,
-    'pool_recycle': 300,
-    'pool_size': 10,
-    'max_overflow': 20
-}
-app.logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setLevel(logging.DEBUG)
-app.logger.addHandler(handler)
-db = SQLAlchemy(app)
-
-# تسجيل فلتر from_json لجينجا
-@app.template_filter('from_json')
-def from_json_filter(data):
-    return json.loads(data)
-
-# فلتر جديد لتحويل التاريخ
-@app.template_filter('to_date')
-def to_date_filter(date_str):
-    try:
-        return datetime.strptime(date_str, '%Y-%m-%d').date()
-    except:
-        return None
-
-# إعداد نظام التسجيل للأخطاء
 logging.basicConfig(
     filename=os.path.join(BASE_DIR, 'office_app.log'),
     level=logging.ERROR,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
+
+db = SQLAlchemy(app)
+migrate = Migrate(app, db)
+csrf = CSRFProtect(app)
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["300 per hour"],
+    storage_uri="memory://",
+)
+
+
+@app.after_request
+def set_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "font-src 'self' https://cdn.jsdelivr.net; "
+        "img-src 'self' data:; "
+        "connect-src 'self';"
+    )
+    return response
+
+
+@app.context_processor
+def inject_csrf_token():
+    return dict(csrf_token=generate_csrf)
+
+
+@app.template_filter('from_json')
+def from_json_filter(data):
+    try:
+        return json.loads(data)
+    except Exception:
+        return []
+
+
+@app.template_filter('to_date')
+def to_date_filter(date_str):
+    try:
+        return datetime.strptime(date_str, '%Y-%m-%d').date()
+    except Exception:
+        return None
+
+
+def _is_admin():
+    return session.get('role') == 'admin'
 
 # قائمة الخدمات مع الأسعار الافتراضية
 SERVICES = [
@@ -196,10 +222,16 @@ class Expense(db.Model):
     description = db.Column(db.String(200))
     paid_by = db.Column(db.String(50))
 
-# وظائف مساعدة
 def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+    if '.' not in filename:
+        return False
+    ext = filename.rsplit('.', 1)[1].lower()
+    return ext in app.config['ALLOWED_EXTENSIONS']
+
+
+def safe_filename(filename):
+    ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+    return f"{uuid.uuid4().hex}.{ext}" if ext else uuid.uuid4().hex
 
 def create_notification(username, message, link=None):
     """إنشاء إشعار جديد للمستخدم"""
@@ -219,42 +251,49 @@ def create_notification(username, message, link=None):
 
 def auto_backup():
     """تنفيذ نسخ احتياطي يومي للحفاظ على آخر 7 نسخ"""
-    base_dir = os.path.abspath(os.path.dirname(__file__))
     backup_dir = app.config['BACKUP_DIR']
     os.makedirs(backup_dir, exist_ok=True)
-    
+
     while True:
         try:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             backup_file = os.path.join(backup_dir, f"office_backup_{timestamp}.sql")
-            
-            # استخدام pg_dump لعمل نسخة احتياطية
-            db_user = os.environ.get('POSTGRES_USER', 'user')
-            db_password = os.environ.get('POSTGRES_PASSWORD', 'password')
+
+            db_user = os.environ.get('POSTGRES_USER', 'office_user')
+            db_password = os.environ.get('POSTGRES_PASSWORD', '')
             db_name = os.environ.get('POSTGRES_DB', 'office_services')
-            
-            # بناء أمر النسخ الاحتياطي
-            command = f"pg_dump -U {db_user} -h db -d {db_name} > {backup_file}"
-            os.environ['PGPASSWORD'] = db_password
-            
-            # تنفيذ النسخ الاحتياطي
-            os.system(command)
-            
-            # حذف النسخ القديمة
-            backups = glob.glob(os.path.join(backup_dir, "office_backup_*.sql"))
-            backups.sort(key=os.path.getmtime, reverse=True)
-            
+
+            env = {**os.environ, 'PGPASSWORD': db_password}
+
+            with open(backup_file, 'w') as f:
+                result = subprocess.run(
+                    ['pg_dump', '-U', db_user, '-h', 'db', '-d', db_name],
+                    stdout=f,
+                    stderr=subprocess.PIPE,
+                    env=env,
+                    timeout=300,
+                )
+            if result.returncode != 0:
+                logging.error(f"pg_dump error: {result.stderr.decode()}")
+                if os.path.exists(backup_file):
+                    os.remove(backup_file)
+
+            backups = sorted(
+                glob.glob(os.path.join(backup_dir, "office_backup_*.sql")),
+                key=os.path.getmtime,
+                reverse=True,
+            )
             for old_backup in backups[7:]:
                 try:
                     os.remove(old_backup)
                 except Exception as e:
-                    logging.error(f"فشل حذف نسخة احتياطية: {str(e)}")
-            
-            time.sleep(24 * 60 * 60)  # الانتظار 24 ساعة
-            
+                    logging.error(f"فشل حذف نسخة احتياطية: {e}")
+
+            time.sleep(24 * 60 * 60)
+
         except Exception as e:
-            logging.error(f"فشل النسخ الاحتياطي: {str(e)}\n{traceback.format_exc()}")
-            time.sleep(60 * 60)  # الانتظار ساعة ثم إعادة المحاولة
+            logging.error(f"فشل النسخ الاحتياطي: {e}\n{traceback.format_exc()}")
+            time.sleep(60 * 60)
 
 # بدء النسخ الاحتياطي في خيط منفصل
 if not getattr(app, 'backup_thread_started', False):
@@ -280,95 +319,105 @@ def index():
     return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")
 def login():
+    if 'user' in session:
+        return redirect(url_for('main'))
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+
+        if not username or not password:
+            flash('يرجى إدخال اسم المستخدم وكلمة المرور', 'danger')
+            return render_template('login.html')
+
         user = User.query.filter_by(username=username).first()
         if user and check_password_hash(user.password, password):
+            session.clear()
+            session.permanent = True
             session['user'] = username
+            session['role'] = user.role
             return redirect(url_for('main'))
-        else:
-            flash('بيانات الدخول غير صحيحة', 'danger')
-    
+
+        flash('بيانات الدخول غير صحيحة', 'danger')
+
     return render_template('login.html')
 
 @app.route('/customer_login', methods=['POST'])
+@limiter.limit("10 per minute")
 def customer_login():
-    if request.method == 'POST':
-        phone = request.form['phone']
-        password = request.form['password']
-        
-        app.logger.debug(f"Attempting login for phone: {phone}")
-        
-        customer = Customer.query.filter_by(phone=phone).first()
-        
-        if customer:
-            app.logger.debug(f"Customer found: {customer.id} - {customer.name}")
-            app.logger.debug(f"Stored password hash: {customer.password}")
-            
-            # التحقق من كلمة المرور
-            if check_password_hash(customer.password, password):
-                session['customer_id'] = customer.id
-                app.logger.debug("Login successful, redirecting to dashboard")
-                return redirect(url_for('customer_dashboard'))
-            else:
-                app.logger.warning("Password verification failed")
-        else:
-            app.logger.warning(f"No customer found for phone: {phone}")
-        
-        flash('بيانات الدخول غير صحيحة', 'danger')
-    
+    phone = request.form.get('phone', '').strip()
+    password = request.form.get('password', '')
+
+    if not phone or not password:
+        flash('يرجى إدخال رقم الهاتف وكلمة المرور', 'danger')
+        return redirect(url_for('index'))
+
+    customer = Customer.query.filter_by(phone=phone).first()
+    if customer and customer.password and check_password_hash(customer.password, password):
+        session.clear()
+        session.permanent = True
+        session['customer_id'] = customer.id
+        return redirect(url_for('customer_dashboard'))
+
+    flash('بيانات الدخول غير صحيحة', 'danger')
     return redirect(url_for('index'))
 
-@app.route('/customer_register', methods=['GET', 'POST'])  # تم التعديل هنا
+@app.route('/customer_register', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
 def customer_register():
-    if request.method == 'POST':
-        name = request.form['name']
-        phone = request.form['phone']
-        email = request.form['email']
-        password = request.form['password']
-        
-        # التحقق من صحة البريد الإلكتروني
-        if not email or '@' not in email:
-            flash('يرجى إدخال بريد إلكتروني صحيح', 'danger')
-            return redirect(url_for('customer_register'))
-        
-        existing = Customer.query.filter_by(phone=phone).first()
-        if existing:
-            flash('رقم الهاتف مسجل مسبقاً', 'danger')
-            return redirect(url_for('customer_register'))
-        
-        new_customer = Customer(
-            name=name,
-            phone=phone,
-            email=email,
-            password=generate_password_hash(password)
-        )
-        db.session.add(new_customer)
-        db.session.commit()
-        app.logger.debug(f"تم تسجيل عميل جديد: ID={new_customer.id}, الهاتف={new_customer.phone}")
-
-        flash('تم إنشاء حسابك بنجاح، يمكنك تسجيل الدخول الآن', 'success')
-        return redirect(url_for('index'))
-    
-    # تمرير قائمة الخدمات المطلوبة
     required_services = [
         "ترجمة مستندات", "تصديق أوراق", "عدلية", "خارجية",
         "ابوستيل", "التسجيل على الجامعة", "ترجمة باسبور"
     ]
-    
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        phone = request.form.get('phone', '').strip()
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '')
+
+        if not name or len(name) < 2:
+            flash('يرجى إدخال اسم صحيح', 'danger')
+            return render_template('customer_register.html', services=required_services)
+
+        if not re.match(r'^\+?\d{7,15}$', phone):
+            flash('يرجى إدخال رقم هاتف صحيح', 'danger')
+            return render_template('customer_register.html', services=required_services)
+
+        if email and not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+            flash('يرجى إدخال بريد إلكتروني صحيح', 'danger')
+            return render_template('customer_register.html', services=required_services)
+
+        if len(password) < 6:
+            flash('كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'danger')
+            return render_template('customer_register.html', services=required_services)
+
+        if Customer.query.filter_by(phone=phone).first():
+            flash('رقم الهاتف مسجل مسبقاً', 'danger')
+            return render_template('customer_register.html', services=required_services)
+
+        new_customer = Customer(
+            name=name,
+            phone=phone,
+            email=email or None,
+            password=generate_password_hash(password)
+        )
+        db.session.add(new_customer)
+        db.session.commit()
+        flash('تم إنشاء حسابك بنجاح، يمكنك تسجيل الدخول الآن', 'success')
+        return redirect(url_for('index'))
+
     return render_template('customer_register.html', services=required_services)
 
-@app.route('/logout')
+@app.route('/logout', methods=['POST', 'GET'])
 def logout():
-    session.pop('user', None)
+    session.clear()
     return redirect(url_for('login'))
 
-@app.route('/customer_logout')
+
+@app.route('/customer_logout', methods=['POST', 'GET'])
 def customer_logout():
-    session.pop('customer_id', None)
+    session.clear()
     return redirect(url_for('index'))
 
 @app.route('/main')
@@ -1209,10 +1258,8 @@ def edit_transaction(transaction_id):
 
 
 @app.route('/delete_transaction/<int:transaction_id>', methods=['POST'])
+@admin_required
 def delete_transaction(transaction_id):
-    if 'user' not in session or session['user'] != 'ابراهيم':
-        flash('ليس لديك صلاحية لهذا الإجراء', 'danger')
-        return redirect(url_for('review_transactions'))
     
     try:
         transaction = Transaction.query.get(transaction_id)
@@ -1281,11 +1328,10 @@ def delete_file(file_id):
         flash('الملف غير موجود', 'danger')
         return redirect(request.referrer)
     
-    # التحقق من الصلاحية: إما المستخدم هو الذي أضاف المعاملة أو هو المدير
     transaction = Transaction.query.get(file_record.transaction_id)
-    if session['user'] != transaction.user and session['user'] != 'ابراهيم':
+    if session['user'] != transaction.user and not _is_admin():
         flash('ليس لديك صلاحية لحذف هذا الملف', 'danger')
-        return redirect(request.referrer)
+        return redirect(request.referrer or url_for('review_transactions'))
     
     try:
         # حذف الملف من النظام
@@ -1313,10 +1359,8 @@ def delete_file(file_id):
     return redirect(request.referrer)
 
 @app.route('/export_pdf')
+@admin_required
 def export_pdf():
-    if 'user' not in session or session['user'] != 'ابراهيم':
-        flash('ليس لديك صلاحية لهذا الإجراء', 'danger')
-        return redirect(url_for('review_transactions'))
     
     try:
         # جلب الحقول الضرورية فقط
@@ -1460,10 +1504,8 @@ def export_pdf():
         return redirect(url_for('review_transactions'))
 
 @app.route('/export_excel')
+@admin_required
 def export_excel():
-    if 'user' not in session or session['user'] != 'ابراهيم':
-        flash('ليس لديك صلاحية لهذا الإجراء', 'danger')
-        return redirect(url_for('review_transactions'))
     
     try:
         # تحديد الحقول المطلوبة فقط
@@ -1574,18 +1616,14 @@ def print_transaction(transaction_id):
     )
 
 @app.route('/manage_users')
+@admin_required
 def manage_users():
-    if 'user' not in session or session['user'] != 'ابراهيم':
-        flash('ليس لديك صلاحية لهذه الصفحة', 'danger')
-        return redirect(url_for('main'))
-    
     users = User.query.all()
     return render_template('manage_users.html', users=users)
 
 @app.route('/add_user', methods=['POST'])
+@admin_required
 def add_user():
-    if 'user' not in session or session['user'] != 'ابراهيم':
-        return jsonify({'success': False, 'message': 'غير مصرح'}), 403
     
     try:
         username = request.form['username']
@@ -1619,9 +1657,8 @@ def add_user():
         return jsonify({'success': False, 'message': 'حدث خطأ أثناء الإضافة'}), 500
 
 @app.route('/update_user/<int:user_id>', methods=['POST'])
+@admin_required
 def update_user(user_id):
-    if 'user' not in session or session['user'] != 'ابراهيم':
-        return jsonify({'success': False, 'message': 'غير مصرح'}), 403
     
     try:
         user = User.query.get(user_id)
@@ -1649,17 +1686,15 @@ def update_user(user_id):
         return jsonify({'success': False, 'message': 'حدث خطأ أثناء التحديث'}), 500
 
 @app.route('/delete_user/<int:user_id>', methods=['POST'])
+@admin_required
 def delete_user(user_id):
-    if 'user' not in session or session['user'] != 'ابراهيم':
-        return jsonify({'success': False, 'message': 'غير مصرح'}), 403
-    
     try:
         user = User.query.get(user_id)
         if not user:
             return jsonify({'success': False, 'message': 'المستخدم غير موجود'}), 404
-        
-        if user.username == 'ابراهيم':
-            return jsonify({'success': False, 'message': 'لا يمكن حذف المستخدم ابراهيم'}), 400
+
+        if user.role == 'admin' and user.username == session.get('user'):
+            return jsonify({'success': False, 'message': 'لا يمكن حذف حسابك الخاص'}), 400
         
         db.session.delete(user)
         db.session.commit()
@@ -1677,11 +1712,9 @@ def delete_user(user_id):
         logging.error(f"خطأ في حذف مستخدم: {str(e)}")
         return jsonify({'success': False, 'message': 'حدث خطأ أثناء الحذف'}), 500
 
-# مسار إضافة/تعديل مصروف
 @app.route('/save_expense', methods=['POST'])
+@admin_required
 def save_expense():
-    if 'user' not in session or session['user'] != 'ابراهيم':
-        return jsonify({'success': False, 'message': 'غير مصرح'}), 403
     
     try:
         expense_id = request.form.get('expense_id')
@@ -1715,11 +1748,9 @@ def save_expense():
         logging.error(f"خطأ في حفظ المصروف: {str(e)}")
         return jsonify({'success': False, 'message': 'حدث خطأ أثناء الحفظ'}), 500
 
-# مسار الحصول على بيانات مصروف
 @app.route('/get_expense/<int:expense_id>', methods=['GET'])
+@admin_required
 def get_expense(expense_id):
-    if 'user' not in session or session['user'] != 'ابراهيم':
-        return jsonify({'success': False, 'message': 'غير مصرح'}), 403
     
     expense = Expense.query.get(expense_id)
     if not expense:
@@ -1735,12 +1766,9 @@ def get_expense(expense_id):
         }
     })
 
-# مسار حذف مصروف
 @app.route('/delete_expense/<int:expense_id>', methods=['POST'])
+@admin_required
 def delete_expense(expense_id):
-    if 'user' not in session or session['user'] != 'ابراهيم':
-        flash('ليس لديك صلاحية لهذا الإجراء', 'danger')
-        return redirect(url_for('review_transactions'))
     
     try:
         expense = Expense.query.get(expense_id)
@@ -1800,26 +1828,11 @@ def notifications():
                           all_notifications=all_notifications,
                           user=session['user'])
 @app.route('/employee/requests', endpoint='employee_requests_page')
-def list_employee_requests():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    
-    # جلب جميع الطلبات غير المكتملة
-    requests = ServiceRequest.query.filter(
-        ServiceRequest.status.in_(['جديد', 'قيد المعالجة'])
-    ).order_by(ServiceRequest.request_date.desc()).all()
-    
-    return render_template('employee_requests.html', requests=requests)
-# مسارات الموظفين لطلبات العملاء
-@app.route('/employee/requests')
+@login_required
 def employee_requests():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    
     requests = ServiceRequest.query.filter(
         ServiceRequest.status.in_(['جديد', 'قيد المعالجة'])
     ).order_by(ServiceRequest.request_date.desc()).all()
-    
     return render_template('employee_requests.html', requests=requests)
 
 @app.route('/view_request/<int:request_id>')
@@ -1947,7 +1960,7 @@ def save_transaction_from_request(request_id):
         db.session.commit()
         
         flash('تم إنشاء المعاملة بنجاح وإضافة الطلب إلى ديون العميل', 'success')
-        return redirect(url_for('employee_requests'))
+        return redirect(url_for('employee_requests_page'))
     
     except Exception as e:
         db.session.rollback()
@@ -1962,28 +1975,14 @@ def create_notification_for_customer(customer_id, message, link=None):
     # يمكن تطويرها لاستخدام نظام الإشعارات الداخلي
     pass
 
-def wait_for_db():
-    max_retries = 5
-    retry_delay = 3
-    
+def wait_for_db(max_retries=10, retry_delay=5):
+    db_url = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+    if db_url.startswith('sqlite'):
+        return True
     for i in range(max_retries):
         try:
-            db.engine.connect()
-            print("✅ تم الاتصال بنجاح بقاعدة البيانات")
-            return True
-        except OperationalError:
-            print(f"⌛ محاولة {i+1}/{max_retries}: قاعدة البيانات غير جاهزة، إعادة المحاولة بعد {retry_delay} ثواني...")
-            time.sleep(retry_delay)
-    print("❌ فشل الاتصال بقاعدة البيانات بعد عدة محاولات")
-    return False
-def wait_for_db():
-    max_retries = 10
-    retry_delay = 5
-    
-    for i in range(max_retries):
-        try:
-            db.engine.connect()
-            print("✅ تم الاتصال بنجاح بقاعدة البيانات")
+            with db.engine.connect():
+                pass
             return True
         except OperationalError:
             print(f"⌛ محاولة {i+1}/{max_retries}: قاعدة البيانات غير جاهزة، إعادة المحاولة بعد {retry_delay} ثواني...")
@@ -1991,33 +1990,64 @@ def wait_for_db():
     print("❌ فشل الاتصال بقاعدة البيانات بعد عدة محاولات")
     return False
 
-if __name__ == '__main__':
+@app.errorhandler(403)
+def forbidden(e):
+    return render_template('403.html'), 403
+
+
+@app.errorhandler(404)
+def not_found(e):
+    return render_template('404.html'), 404
+
+
+@app.errorhandler(413)
+def request_entity_too_large(e):
+    flash('حجم الملف يتجاوز الحد المسموح به', 'danger')
+    return redirect(request.referrer or url_for('main')), 413
+
+
+@app.errorhandler(429)
+def too_many_requests(e):
+    return render_template('404.html'), 429
+
+
+@app.errorhandler(500)
+def internal_error(e):
+    db.session.rollback()
+    logging.error(f"500 error: {e}")
+    return render_template('500.html'), 500
+
+
+def init_db():
     with app.app_context():
         if wait_for_db():
             db.create_all()
             print("✅ تم إنشاء الجداول بنجاح")
-            
-            # إنشاء المستخدمين الافتراضيين
+
+            # المستخدمون الافتراضيون - يجب تغيير كلمات المرور فور أول تشغيل
             default_users = [
-                ("مصطفى", "1234", "user"),
-                ("محمد", "5678", "user"),
-                ("ابراهيم", "123456789**", "admin")
+                ("مصطفى", os.environ.get('DEFAULT_PASS_MUSTAFA', 'ChangeMe!1234'), "user"),
+                ("محمد", os.environ.get('DEFAULT_PASS_MOHAMMED', 'ChangeMe!5678'), "user"),
+                ("ابراهيم", os.environ.get('DEFAULT_PASS_ADMIN', 'ChangeMe!Admin99'), "admin"),
             ]
-            
+
             for username, password, role in default_users:
-                user = User.query.filter_by(username=username).first()
-                if not user:
-                    new_user = User(
+                if not User.query.filter_by(username=username).first():
+                    db.session.add(User(
                         username=username,
                         password=generate_password_hash(password),
-                        role=role
-                    )
-                    db.session.add(new_user)
+                        role=role,
+                    ))
                     print(f"تم إنشاء المستخدم: {username}")
-            
+
             db.session.commit()
-            print("تم تهيئة قاعدة البيانات بنجاح")
+            print("✅ تم تهيئة قاعدة البيانات بنجاح")
         else:
-            print("❌ فشل تهيئة التطبيق بسبب مشاكل في قاعدة البيانات")
-    
-    app.run(host='0.0.0.0', port=5000, debug=True)
+            raise SystemExit("❌ فشل تهيئة التطبيق بسبب مشاكل في قاعدة البيانات")
+
+
+if __name__ == '__main__':
+    init_db()
+    # للتطوير المحلي فقط - في الإنتاج يُستخدم Gunicorn
+    debug_mode = os.environ.get('FLASK_DEBUG', '0') == '1'
+    app.run(host='127.0.0.1', port=5000, debug=debug_mode)

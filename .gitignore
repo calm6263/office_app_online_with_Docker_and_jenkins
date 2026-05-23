@@ -3,15 +3,16 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.pycache
 
-# ملفات بيئة
+# ملفات بيئة (لا ترفعها أبداً)
 .env
+.env.local
+.env.production
 .venv
 env/
 venv/
 ENV/
-env.bak/
-venv.bak/
 
 # قاعدة البيانات
 *.sqlite
@@ -20,12 +21,26 @@ venv.bak/
 # السجلات
 *.log
 logs/
+office_app.log
 
 # الملفات المحملة
 static/transaction_files/*
 !static/transaction_files/.gitkeep
+static/reports/*
+!static/reports/.gitkeep
 database_backups/
 
 # إعدادات IDE
 .idea/
 .vscode/
+*.swp
+*.swo
+
+# ملفات النظام
+.DS_Store
+Thumbs.db
+
+# ملفات Pytest
+.pytest_cache/
+htmlcov/
+.coverage

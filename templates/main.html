@@ -9,6 +9,7 @@
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('add_transaction') }}" enctype="multipart/form-data" id="transactionForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label for="client_name" class="form-label">👤 اسم العميل</label>
@@ -154,7 +155,7 @@
         
         <div class="d-flex justify-content-between mb-4">
             <!-- إظهار الأزرار فقط للمدير إبراهيم -->
-            {% if user == 'ابراهيم' %}
+            {% if session.get('role') == 'admin' %}
             <a href="{{ url_for('review_transactions') }}" class="btn btn-primary">
                 <i class="bi bi-list-check"></i> مراجعة المعاملات
             </a>
@@ -168,7 +169,7 @@
             </a>
             
             <!-- أزرار فلترة طريقة الدفع الجديدة - تظهر فقط لإبراهيم -->
-            {% if user == 'ابراهيم' %}
+            {% if session.get('role') == 'admin' %}
             <a href="{{ url_for('review_transactions', payment_method='كاش') }}" class="btn btn-success">
                 <i class="bi bi-cash"></i> معاملات الكاش
             </a>
@@ -178,7 +179,7 @@
             {% endif %}
             
             <!-- إظهار الأزرار فقط للمدير إبراهيم -->
-            {% if user == 'ابراهيم' %}
+            {% if session.get('role') == 'admin' %}
             <a href="{{ url_for('manage_users') }}" class="btn btn-secondary">
                 <i class="bi bi-people"></i> إدارة المستخدمين
             </a>

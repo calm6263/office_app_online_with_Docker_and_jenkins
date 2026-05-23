@@ -13,6 +13,7 @@
                     <div class="col-md-6 border-end">
                         <h5 class="text-center mb-4"><i class="bi bi-person-badge"></i> دخول الموظفين</h5>
                         <form method="POST" action="{{ url_for('login') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <div class="mb-3">
                                 <label for="username" class="form-label">اسم المستخدم</label>
                                 <input type="text" class="form-control" id="username" name="username" required>
@@ -38,6 +39,7 @@
                     <div class="col-md-6">
                         <h5 class="text-center mb-4"><i class="bi bi-person"></i> دخول العملاء</h5>
                         <form method="POST" action="{{ url_for('customer_login') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <div class="mb-3">
                                 <label for="customer_phone" class="form-label">رقم الهاتف</label>
                                 <input type="text" class="form-control" id="customer_phone" name="phone" required>
@@ -69,19 +71,4 @@
     </div>
 </div>
 
-<script>
-    document.getElementById('togglePassword').addEventListener('click', function() {
-        const passwordInput = document.getElementById('password');
-        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-        passwordInput.setAttribute('type', type);
-        this.innerHTML = type === 'password' ? '<i class="bi bi-eye"></i>' : '<i class="bi bi-eye-slash"></i>';
-    });
-    
-    document.getElementById('toggleCustomerPassword').addEventListener('click', function() {
-        const passwordInput = document.getElementById('customer_password');
-        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-        passwordInput.setAttribute('type', type);
-        this.innerHTML = type === 'password' ? '<i class="bi bi-eye"></i>' : '<i class="bi bi-eye-slash"></i>';
-    });
-</script>
 {% endblock %}

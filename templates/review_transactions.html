@@ -11,7 +11,7 @@
             <a href="{{ url_for('main') }}" class="btn btn-light btn-sm">
                 <i class="bi bi-house"></i> الرئيسية
             </a>
-            {% if user == 'ابراهيم' %}
+            {% if session.get('role') == 'admin' %}
             <a href="{{ url_for('export_pdf') }}" class="btn btn-info btn-sm">
                 <i class="bi bi-file-earmark-pdf"></i> تصدير PDF
             </a>
@@ -179,7 +179,7 @@
         </div>
         
         <!-- إحصائيات نتائج الفلتر - تظهر فقط لإبراهيم -->
-        {% if user == 'ابراهيم' %}
+        {% if session.get('role') == 'admin' %}
         <div class="row mb-4">
             <div class="col-md-3">
                 <div class="card text-white bg-primary">
@@ -217,7 +217,7 @@
         {% endif %}
         
         <!-- الإحصائيات المحسنة - تظهر فقط لإبراهيم -->
-        {% if user == 'ابراهيم' and not filter_pending %}
+        {% if session.get('role') == 'admin' and not filter_pending %}
         <div class="row mb-4">
             <!-- بطاقة الدخل اليومي الإجمالي (الجديدة) -->
             <div class="col-md-2">
@@ -281,7 +281,7 @@
         {% endif %}
         
         <!-- قسم المصاريف - تظهر فقط لإبراهيم -->
-        {% if user == 'ابراهيم' %}
+        {% if session.get('role') == 'admin' %}
         <div class="card mb-4">
             <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-cash-coin"></i> مصاريف المكتب نتاريوس</h5>
@@ -313,8 +313,9 @@
                                         <i class="bi bi-pencil"></i>
                                     </button>
                                     <form class="d-inline" method="POST" action="{{ url_for('delete_expense', expense_id=expense.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-sm btn-danger"
-                                            onclick="return confirm('هل أنت متأكد من حذف هذا المصروف؟')"
+                                            data-confirm="هل أنت متأكد من حذف هذا المصروف؟"
                                             title="حذف المصروف">
                                             <i class="bi bi-trash"></i>
                                         </button>
@@ -402,6 +403,7 @@
                                         </div>
                                         {% if service.status != 'تم الإنجاز' %}
                                         <form method="POST" action="{{ url_for('complete_service', transaction_id=trans.id, service_name=service.name) }}">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-sm btn-success">
                                                 <i class="bi bi-check-circle"></i> إنجاز
                                             </button>
@@ -450,25 +452,27 @@
                                 
                                 {% if trans.payment_status == 'لاحقاً' or trans.payment_status == 'تقسيط' %}
                                 <form method="POST" action="{{ url_for('update_to_paid', transaction_id=trans.id) }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn btn-sm btn-success mb-1" title="تحويل إلى مدفوعة">
                                         <i class="bi bi-currency-exchange"></i>
                                     </button>
                                 </form>
                                 {% endif %}
-                                
-                                <!-- زر إنجاز جميع الخدمات -->
+
                                 {% if trans.status != 'تم الإنجاز' %}
                                 <form method="POST" action="{{ url_for('complete_transaction', transaction_id=trans.id) }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn btn-sm btn-success mb-1" title="إنجاز جميع الخدمات">
                                         <i class="bi bi-check-all"></i>
                                     </button>
                                 </form>
                                 {% endif %}
-                                
-                                {% if user == 'ابراهيم' %}
+
+                                {% if session.get('role') == 'admin' %}
                                 <form method="POST" action="{{ url_for('delete_transaction', transaction_id=trans.id) }}">
-                                    <button type="submit" class="btn btn-sm btn-danger" 
-                                        onclick="return confirm('هل أنت متأكد من حذف هذه المعاملة؟')"
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-danger"
+                                        data-confirm="هل أنت متأكد من حذف هذه المعاملة؟"
                                         title="حذف المعاملة">
                                         <i class="bi bi-trash"></i>
                                     </button>

@@ -9,6 +9,7 @@
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('save_transaction_from_request', request_id=request.id) }}" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <!-- بيانات العميل (تعبئة تلقائية) -->
                     <div class="mb-3">
                         <label for="client_name" class="form-label">اسم العميل</label>

@@ -1,14 +1,17 @@
-# Dockerfile
-FROM python:3.10-slim-bullseye
+# ======================================================
+# المرحلة الأولى: بناء التبعيات
+# ======================================================
+FROM python:3.10-slim-bullseye AS builder
 
-# تعيين متغيرات البيئة
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-ENV DEBIAN_FRONTEND noninteractive
-RUN sed -i 's/main/main non-free/' /etc/apt/sources.list
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# تثبيت حزم النظام المطلوبة
-RUN apt-get update && apt-get install -y \
+RUN sed -i 's/main$/main non-free/' /etc/apt/sources.list
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
     python3-dev \
@@ -16,36 +19,67 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     libpng-dev \
     libjpeg-dev \
-    fonts-freefont-ttf \
-    fonts-dejavu \
-    fonts-freefont-ttf \
     && rm -rf /var/lib/apt/lists/*
 
-# إنشاء مجلد التطبيق
+WORKDIR /build
+
+COPY requirements.txt .
+RUN pip install --upgrade pip && \
+    pip install --prefix=/install --no-cache-dir -r requirements.txt
+
+# ======================================================
+# المرحلة الثانية: صورة الإنتاج
+# ======================================================
+FROM python:3.10-slim-bullseye AS production
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    FLASK_ENV=production \
+    FLASK_DEBUG=0
+
+RUN sed -i 's/main$/main non-free/' /etc/apt/sources.list
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    libfreetype6 \
+    libpng16-16 \
+    libjpeg62-turbo \
+    fonts-freefont-ttf \
+    fonts-dejavu \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# إنشاء مستخدم غير root للأمان
+RUN groupadd --gid 1001 appgroup && \
+    useradd --uid 1001 --gid appgroup --shell /bin/bash --create-home appuser
+
 WORKDIR /app
 
-# نسخ متطلبات التطبيق
-COPY requirements.txt .
+# نسخ الحزم المثبتة من مرحلة البناء
+COPY --from=builder /install /usr/local
 
-# تثبيت الاعتمادات البايثونية
-RUN pip install --no-cache-dir -U pip && \
-    pip install --no-cache-dir -r requirements.txt
+# نسخ الكود
+COPY --chown=appuser:appgroup . .
 
-# نسخ ملفات التطبيق
-COPY . .
-
-# إنشاء المجلدات الضرورية
+# إنشاء المجلدات الضرورية بأذونات صحيحة
 RUN mkdir -p \
     static/transaction_files \
     static/reports \
     static/fonts \
-    database_backups
+    database_backups \
+    && chown -R appuser:appgroup \
+    static/transaction_files \
+    static/reports \
+    static/fonts \
+    database_backups \
+    && chmod -R 750 static/transaction_files static/reports database_backups
 
-# تعيين أذونات للمجلدات
-RUN chmod -R 755 static database_backups
+# التبديل إلى المستخدم غير root
+USER appuser
 
-# فتح المنفذ
 EXPOSE 5000
 
-# أمر التشغيل
-CMD ["python", "app.py"]
+# نقطة دخول Gunicorn
+ENTRYPOINT ["gunicorn"]
+CMD ["--config", "gunicorn.conf.py", "wsgi:application"]
